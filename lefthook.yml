@@ -1,5 +1,10 @@
 pre-commit:
   commands:
+    gofmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+    gotest:
+      run: go test ./...
     cspell:
       glob: "*"
       run: npx cspell --no-must-find-files {staged_files}

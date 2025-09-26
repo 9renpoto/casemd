@@ -3,5 +3,26 @@
   "version": "0.2",
   "dictionaryDefinitions": [],
   "dictionaries": [],
-  "ignorePaths": []
+  "ignorePaths": [],
+  "words": [
+    "Buildx",
+    "Codecov",
+    "Lefthook",
+    "casemd",
+    "covermode",
+    "coverprofile",
+    "dbaeumer",
+    "devcontainers",
+    "esbenp",
+    "evilmartians",
+    "frontends",
+    "gofmt",
+    "gotest",
+    "markdownparser",
+    "moby",
+    "pipefail",
+    "renpoto",
+    "testdata",
+    "unittests"
+  ]
 }
