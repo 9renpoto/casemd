@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Verify module files
+        run: go mod tidy
+
+      - name: Check formatting
+        run: |
+          files=$(find . -name '*.go' -not -path './.devcontainer/*')
+          if [ -n "$files" ]; then
+            unformatted=$(gofmt -l $files)
+            if [ -n "$unformatted" ]; then
+              echo "Go files need formatting:"
+              echo "$unformatted"
+              exit 1
+            fi
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run unit tests with coverage
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          flags: unittests
+          fail_ci_if_error: true
+
+      - name: Build CLI
+        run: go build ./cmd/casemd
+
+      - name: Spell check documentation
+        run: npx cspell "**/*.md"
