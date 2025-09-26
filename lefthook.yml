@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    cspell:
+      glob: "*"
+      run: npx cspell --no-must-find-files {staged_files}
+    secretlint:
+      run: docker run --rm -v "$(pwd):/work" --workdir /work secretlint/secretlint:latest secretlint .
