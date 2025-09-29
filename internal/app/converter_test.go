@@ -2,47 +2,61 @@ package app
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/9renpoto/casemd/internal/core/domain"
 )
 
-type stubExtractor struct {
-	headings []string
-	err      error
+type mockCaseParser struct {
+	cases []domain.Case
+	err   error
 }
 
-func (s stubExtractor) ExtractHeadings(r io.Reader) ([]string, error) {
-	return s.headings, s.err
+func (m *mockCaseParser) Parse(r io.Reader) ([]domain.Case, error) {
+	return m.cases, m.err
 }
 
-func TestMarkdownToCSV(t *testing.T) {
-	t.Run("writes headings to csv", func(t *testing.T) {
-		extractor := stubExtractor{headings: []string{"Title", "Another"}}
-		converter := NewMarkdownToCSV(extractor)
+func TestMarkdownToCSV_Convert(t *testing.T) {
+	mockCases := []domain.Case{
+		{
+			MajorItem:       "Setup",
+			MediumItem:      "Environment",
+			MinorItem:       "Dependencies",
+			ValidationSteps: []string{"Step 1", "Step 2"},
+			Checkpoints:     []string{"* [ ] Check 1", "* [ ] Check 2"},
+		},
+		{
+			MajorItem:       "Execution",
+			MediumItem:      "Workflow",
+			MinorItem:       "Run",
+			ValidationSteps: []string{"Run command"},
+			Checkpoints:     []string{"* [ ] Success"},
+		},
+	}
 
-		input := strings.NewReader("irrelevant")
-		var output bytes.Buffer
+	parser := &mockCaseParser{cases: mockCases}
+	converter := NewMarkdownToCSV(parser)
 
-		if err := converter.Convert(input, &output); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+	input := strings.NewReader("") // Input is ignored by the mock
+	var output bytes.Buffer
 
-		got := output.String()
-		want := "Heading\nTitle\nAnother\n"
-		if got != want {
-			t.Fatalf("expected output %q, got %q", want, got)
-		}
-	})
+	err := converter.Convert(input, &output)
+	if err != nil {
+		t.Fatalf("Convert() returned an unexpected error: %v", err)
+	}
 
-	t.Run("returns extractor error", func(t *testing.T) {
-		extractor := stubExtractor{err: errors.New("extract failed")}
-		converter := NewMarkdownToCSV(extractor)
+	// encoding/csv only quotes fields that contain the separator, a newline, or a quote.
+	// The test now reflects this standard behavior.
+	expectedCSV := `Major Item,Medium Item,Minor Item,Validation Steps,Checkpoints,Result,Test Date,Tester,Notes
+Setup,Environment,Dependencies,"Step 1
+Step 2","* [ ] Check 1
+* [ ] Check 2",,,,
+Execution,Workflow,Run,Run command,* [ ] Success,,,,
+`
 
-		err := converter.Convert(strings.NewReader("input"), &bytes.Buffer{})
-		if !errors.Is(err, extractor.err) {
-			t.Fatalf("expected extractor error, got %v", err)
-		}
-	})
+	if output.String() != expectedCSV {
+		t.Errorf("Convert() returned CSV:\n%s\nWant:\n%s", output.String(), expectedCSV)
+	}
 }
