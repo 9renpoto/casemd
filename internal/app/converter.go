@@ -3,47 +3,61 @@ package app
 import (
 	"encoding/csv"
 	"io"
+	"strings"
+
+	"github.com/9renpoto/casemd/internal/core/domain"
 )
 
-// HeadingExtractor defines the behavior required to derive heading rows from Markdown.
-type HeadingExtractor interface {
-	ExtractHeadings(r io.Reader) ([]string, error)
+// CaseParser defines the behavior required to parse test cases from Markdown.
+type CaseParser interface {
+	Parse(r io.Reader) ([]domain.Case, error)
 }
 
-// MarkdownToCSV orchestrates the conversion of Markdown headings into CSV rows.
+// MarkdownToCSV orchestrates the conversion of Markdown test cases into CSV rows.
 type MarkdownToCSV struct {
-	extractor HeadingExtractor
+	parser CaseParser
 }
 
-// NewMarkdownToCSV wires the converter with the provided heading extractor implementation.
-func NewMarkdownToCSV(extractor HeadingExtractor) *MarkdownToCSV {
-	return &MarkdownToCSV{extractor: extractor}
+// NewMarkdownToCSV wires the converter with the provided parser implementation.
+func NewMarkdownToCSV(parser CaseParser) *MarkdownToCSV {
+	return &MarkdownToCSV{parser: parser}
 }
 
-// Convert reads Markdown data and writes a CSV document where each row captures a heading.
+// Convert reads Markdown data and writes a CSV document.
 func (c *MarkdownToCSV) Convert(input io.Reader, output io.Writer) error {
-	headings, err := c.extractor.ExtractHeadings(input)
+	cases, err := c.parser.Parse(input)
 	if err != nil {
 		return err
 	}
 
 	writer := csv.NewWriter(output)
+	defer writer.Flush()
 
-	if err := writer.Write([]string{"Heading"}); err != nil {
+	header := []string{
+		"Major Item", "Medium Item", "Minor Item",
+		"Validation Steps", "Checkpoints",
+		"Result", "Test Date", "Tester", "Notes",
+	}
+	if err := writer.Write(header); err != nil {
 		return err
 	}
 
-	for _, heading := range headings {
-		if err := writer.Write([]string{heading}); err != nil {
+	for _, aCase := range cases {
+		record := []string{
+			aCase.MajorItem,
+			aCase.MediumItem,
+			aCase.MinorItem,
+			strings.Join(aCase.ValidationSteps, "\n"),
+			strings.Join(aCase.Checkpoints, "\n"),
+			"", // Result
+			"", // Test Date
+			"", // Tester
+			"", // Notes
+		}
+		if err := writer.Write(record); err != nil {
 			return err
 		}
 	}
 
-	writer.Flush()
-
-	if err := writer.Error(); err != nil {
-		return err
-	}
-
-	return nil
+	return writer.Error()
 }

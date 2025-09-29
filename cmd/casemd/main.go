@@ -6,18 +6,20 @@ import (
 	"os"
 
 	"github.com/9renpoto/casemd/internal/app"
+	"github.com/9renpoto/casemd/internal/core/domain"
 	"github.com/9renpoto/casemd/internal/core/parser"
 	"github.com/9renpoto/casemd/internal/interfaces/cli"
 )
 
-type markdownHeadingAdapter struct{}
+type coreParserAdapter struct{}
 
-func (markdownHeadingAdapter) ExtractHeadings(r io.Reader) ([]string, error) {
-	return parser.Headings(r)
+func (p *coreParserAdapter) Parse(r io.Reader) ([]domain.Case, error) {
+	return parser.Parse(r)
 }
 
 func main() {
-	converter := app.NewMarkdownToCSV(markdownHeadingAdapter{})
+	parserAdapter := &coreParserAdapter{}
+	converter := app.NewMarkdownToCSV(parserAdapter)
 	tool := cli.New(os.Stdout, os.Stderr, converter)
 	application := app.New(tool)
 
