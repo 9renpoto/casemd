@@ -25,6 +25,23 @@ go run ./cmd/casemd --input notes.md --output build/notes.csv
 
 The generated CSV contains a header row (`Heading`) followed by each top-level heading discovered in the source Markdown.
 
+## Input Format
+
+The converter expects Markdown inspection sheets structured with nested headings and lists. A minimal example:
+
+```markdown
+# Category
+
+## Major Item
+### Middle Item
+#### Minor Item
+
+1. Test process 1
+2. Test process 2
+* [ ] Check point 1
+* [ ] Check point 2
+```
+
 ## Output Preview
 
 The CLI produces a tabular CSV that spreadsheet tools render as a table with distinct columns for inspection planning. When a major or medium item covers multiple checks (as in the reference screenshot), the CSV repeats the value on each relevant row; the table below leaves those cells blank on subsequent rows to hint at the visual grouping you get after opening the CSV in spreadsheet software.
