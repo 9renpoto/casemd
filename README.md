@@ -3,7 +3,7 @@
 [![CI](https://github.com/9renpoto/casemd/actions/workflows/ci.yml/badge.svg)](https://github.com/9renpoto/casemd/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/9renpoto/casemd/graph/badge.svg?token=D63wbdaCah)](https://codecov.io/gh/9renpoto/casemd)
 
-CLI tool for converting Markdown content into spreadsheet-friendly formats. The initial milestone extracts top-level Markdown headings and writes them to a CSV file, paving the way for full spreadsheet creation.
+CLI tool for converting structured Markdown inspection checklists into spreadsheet-friendly CSV files.
 
 ## Requirements
 
@@ -19,42 +19,93 @@ Using the provided devcontainer guarantees all dependencies are available.
 # Run the CLI help
 go run ./cmd/casemd --help
 
-# Convert Markdown headings into a CSV file
+# Convert a Markdown inspection sheet into a CSV file
 go run ./cmd/casemd --input notes.md --output build/notes.csv
 ```
 
-The generated CSV contains a header row (`Heading`) followed by each top-level heading discovered in the source Markdown.
+The generated CSV contains predefined columns (Major Item, Medium Item, Minor Item, Validation Steps, Checkpoints, Result, Test Date, Tester, Notes) populated from the Markdown hierarchy and list content.
 
 ## Input Format
 
-The converter expects Markdown inspection sheets structured with nested headings and lists. A minimal example:
+Markdown files should express each inspection case with nested headings for the hierarchy and lists for the execution details:
+
+- `#` Heading — Optional document title (`Category` in the legacy format).
+- `##` Heading — Major Item; starts a new block of related checks.
+- `###` Heading — Medium Item inside the current major item.
+- `####` Heading — Minor Item that becomes a single CSV row.
+- Numbered list (`1.`) — Ordered validation steps captured verbatim in the `Validation Steps` column (line breaks preserved).
+- Task list (`* [ ]`) — Checkpoints collected in the `Checkpoints` column (line breaks preserved, `[ ]` or `[x]` kept).
+
+Extended example:
 
 ```markdown
-# Category
+# Inspection Sheet
 
-## Major Item
-### Middle Item
-#### Minor Item
+## Setup
+### Environment
+#### Dependencies
 
-1. Test process 1
-2. Test process 2
-* [ ] Check point 1
-* [ ] Check point 2
+1. Install required packages
+2. Confirm default configurations
+* [ ] Packages installed successfully
+* [ ] Defaults match specification
+
+#### Environment variables
+
+1. Validate required environment variables are set
+* [ ] Variables align with deployment checklist
+
+### Configuration
+#### CLI defaults
+
+1. Inspect generated CSV path
+* [ ] Output file lands in build/
+* [ ] Delimiter is comma
+
+## Execution
+### Workflow
+#### CLI run
+
+1. Run casemd with sample.md
+* [ ] Exit code is 0
+* [ ] CSV file exists
+
+#### Post-run cleanup
+
+1. Remove temporary files from build/
+* [ ] No leftover artifacts
+
+### Validation
+#### Error handling
+
+1. Run casemd without --input
+* [ ] CLI prints actionable error
+* [ ] Exit code is 1
 ```
+
+### Input → Output Mapping
+
+| Markdown Element | CSV Column | Notes |
+| --- | --- | --- |
+| `##` Major Item heading | Major Item | Repeated for each `####` descendant; blank rows in the preview mimic merged cells. |
+| `###` Medium Item heading | Medium Item | Repeated for each minor item inside the medium item; duplicate cells appear blank in the preview to mimic merged headings. |
+| `####` Minor Item heading | Minor Item | Identifies the granular check represented by the row. |
+| Ordered list under the minor item | Validation Steps | Joined with newlines, preserving list order. |
+| Task list under the minor item | Checkpoints | Joined with newlines, retaining `[ ]` / `[x]` markers. |
+| (No Markdown source) | Result / Test Date / Tester / Notes | Columns left blank for test execution; teams fill them in after loading the CSV. |
 
 ## Output Preview
 
-The CLI produces a tabular CSV that spreadsheet tools render as a table with distinct columns for inspection planning. When a major or medium item covers multiple checks (as in the reference screenshot), the CSV repeats the value on each relevant row; the table below leaves those cells blank on subsequent rows to hint at the visual grouping you get after opening the CSV in spreadsheet software.
+Using the Markdown example above, the CLI produces a CSV that spreadsheet tools render as an inspection table. When a major or medium item covers multiple checks, the CSV contains the repeated heading value; the preview below intentionally leaves duplicate cells blank to hint at the grouping you see after opening the file in spreadsheet software.
 
 | Major Item | Medium Item | Minor Item | Validation Steps | Checkpoints | Result | Test Date | Tester | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Setup | Environment | Dependencies | Install required packages | Packages installed successfully | Pass | 2024-03-15 | BRG | Verified with devcontainer |
-|  |  | Environment variables | Validate required environment variables are set | Variables align with deployment checklists | Pass | 2024-03-15 | BRG | Documented in `.env.example` |
-|  | Configuration | CLI defaults | Confirm default output path and delimiter | Defaults match specification | Pass | 2024-03-15 | BRG | No overrides applied |
-| Execution | Workflow | CLI run | Execute `casemd --input sample.md --output sample.csv` | CLI exits with status 0 | Pass | 2024-03-16 | BRG | Sample markdown stored in `testdata/` |
-|  |  | Post-run cleanup | Remove temporary files from `build/` | No leftover artifacts | Pass | 2024-03-16 | BRG | Cleaned via `make clean` |
-|  | Validation | Error handling | Provide missing input file | CLI reports friendly error | Pass | 2024-03-17 | BRG | Exit code 1 verified |
-| Verification | Output | CSV content | Open generated CSV and confirm columns | Columns match specification | Pass | 2024-03-16 | BRG | Ready for reviewer |
+| Setup | Environment | Dependencies | Install required packages<br>Confirm default configurations | Packages installed successfully<br>Defaults match specification |  |  |  |  |
+|  |  | Environment variables | Validate required environment variables are set | Variables align with deployment checklist |  |  |  |  |
+|  | Configuration | CLI defaults | Inspect generated CSV path | Output file lands in build/<br>Delimiter is comma |  |  |  |  |
+| Execution | Workflow | CLI run | Run casemd with sample.md | Exit code is 0<br>CSV file exists |  |  |  |  |
+|  |  | Post-run cleanup | Remove temporary files from build/ | No leftover artifacts |  |  |  |  |
+|  | Validation | Error handling | Run casemd without --input | CLI prints actionable error<br>Exit code is 1 |  |  |  |  |
 
 ## Development Workflow
 
