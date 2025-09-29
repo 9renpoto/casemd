@@ -11,7 +11,8 @@ CLI tool for converting structured Markdown inspection checklists into spreadshe
 - Node.js 20+ (for Lefthook-managed spell checking)
 - Docker (for secretlint via container)
 
-Using the provided devcontainer guarantees all dependencies are available.
+Using the provided devcontainer guarantees all dependencies are available. The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
+<!-- cspell:word ryuta -->
 
 ## Quick Start
 
