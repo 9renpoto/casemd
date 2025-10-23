@@ -8,11 +8,9 @@ CLI tool for converting structured Markdown inspection checklists into CSV files
 ## Requirements
 
 - Go 1.22+
-- Node.js 20+ (for Lefthook-managed spell checking)
-- Docker (for secretlint via container)
+- typos-cli (install via `brew install typos-cli` or your package manager of choice)
 
 Using the provided devcontainer guarantees all dependencies are available. The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
-<!-- cspell:word ryuta -->
 
 ## Quick Start
 
