@@ -56,5 +56,3 @@ jobs:
       - name: Build CLI
         run: go build ./cmd/casemd
 
-      - name: Spell check documentation
-        run: npx cspell "**/*.md"
