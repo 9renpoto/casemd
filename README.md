@@ -14,6 +14,8 @@ Using the provided devcontainer guarantees all dependencies are available. The w
 
 ## Quick Start
 
+The repository ships with `notes.md` and `follow-up.md`, which replicate the extended example below so you can exercise the CLI immediately.
+
 ```sh
 # Run the CLI help
 go run ./cmd/casemd --help
