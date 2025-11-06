@@ -10,6 +10,7 @@ import (
 	"github.com/9renpoto/casemd/internal/core/parser"
 	"github.com/9renpoto/casemd/internal/interfaces/cli"
 	"github.com/9renpoto/casemd/internal/interfaces/googleapi"
+	"github.com/9renpoto/casemd/internal/interfaces/web"
 )
 
 type coreParserAdapter struct{}
@@ -30,6 +31,24 @@ func main() {
 		} else {
 			googleConverter = app.NewMarkdownToGoogleSpreadsheet(parserAdapter, sheetsService)
 		}
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "serve" {
+		addr := os.Getenv("CASEMD_WEB_ADDR")
+		if len(os.Args) > 2 {
+			addr = os.Args[2]
+		}
+		if addr == "" {
+			addr = ":3000"
+		}
+
+		server := web.NewServer(csvConverter)
+		fmt.Fprintf(os.Stdout, "Starting casemd web UI on %s\n", addr)
+		if err := server.Listen(addr); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	tool := cli.New(os.Stdout, os.Stderr, csvConverter, spreadsheetConverter, googleConverter)

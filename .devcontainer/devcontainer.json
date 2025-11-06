@@ -21,6 +21,10 @@
 			]
 		}
 	},
+	"forwardPorts": [
+		3000
+	],
 	"postCreateCommand": "lefthook install",
+	"postStartCommand": "bash -lc 'pkill -f \"casemd serve\" || true; CASEMD_WEB_ADDR=0.0.0.0:3000 nohup go run ./cmd/casemd serve > /tmp/casemd-web.log 2>&1 &'",
 	"remoteUser": "vscode"
 }
