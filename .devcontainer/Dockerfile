@@ -1,7 +1,6 @@
 # Go-focused development container with CLI tooling support.
 FROM mcr.microsoft.com/devcontainers/go:1-1.22-bookworm
 
-# hadolint ignore=DL3008
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG TYPOS_VERSION=1.39.0
