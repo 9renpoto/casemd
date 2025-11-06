@@ -14,7 +14,6 @@
 		"vscode": {
 			"extensions": [
 				"golang.go",
-				"streetsidesoftware.code-spell-checker",
 				"esbenp.prettier-vscode",
 				"dbaeumer.vscode-eslint",
 				"ms-azuretools.vscode-docker"
