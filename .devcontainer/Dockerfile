@@ -3,16 +3,24 @@ FROM mcr.microsoft.com/devcontainers/go:1-1.22-bookworm
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ARG TYPOS_VERSION=1.39.0
-ARG LEFTHOOK_VERSION=2.0.2
+ENV HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew \
+	HOMEBREW_CELLAR=/home/linuxbrew/.linuxbrew/Cellar \
+	HOMEBREW_REPOSITORY=/home/linuxbrew/.linuxbrew/Homebrew \
+	PATH=/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH \
+	MANPATH=/home/linuxbrew/.linuxbrew/share/man:$MANPATH \
+	INFOPATH=/home/linuxbrew/.linuxbrew/share/info:$INFOPATH
 
 USER root
-RUN curl -fsSL "https://github.com/crate-ci/typos/releases/download/v${TYPOS_VERSION}/typos-v${TYPOS_VERSION}-x86_64-unknown-linux-musl.tar.gz" -o /tmp/typos.tar.gz \
-	&& tar -xzf /tmp/typos.tar.gz -C /tmp typos \
-	&& install -m 0755 /tmp/typos /usr/local/bin/typos \
-	&& curl -fsSL "https://github.com/evilmartians/lefthook/releases/download/v${LEFTHOOK_VERSION}/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64.gz" -o /tmp/lefthook.gz \
-	&& gunzip /tmp/lefthook.gz \
-	&& install -m 0755 "/tmp/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64" /usr/local/bin/lefthook \
-	&& rm -rf /tmp/typos /tmp/typos.tar.gz "/tmp/lefthook_${LEFTHOOK_VERSION}_Linux_x86_64"
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends build-essential procps curl file git ca-certificates \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& mkdir -p /home/linuxbrew \
+	&& chown -R vscode:vscode /home/linuxbrew
+
+USER vscode
+RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+	&& eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" \
+	&& brew install typos-cli lefthook \
+	&& echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/vscode/.bashrc
 
 USER vscode
