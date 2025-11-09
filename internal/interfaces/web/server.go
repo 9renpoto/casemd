@@ -61,6 +61,8 @@ func (s *Server) App() *fiber.App {
 }
 
 func (s *Server) registerRoutes() {
+	s.app.Static("/static", "./internal/interfaces/web/static")
+
 	s.app.Get("/healthz", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
