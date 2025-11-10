@@ -17,10 +17,17 @@ RUN apt-get update \
 	&& mkdir -p /home/linuxbrew \
 	&& chown -R vscode:vscode /home/linuxbrew
 
-USER vscode
-RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-	&& eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" \
-	&& brew install typos-cli lefthook \
-	&& echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/vscode/.bashrc
+RUN set -euo pipefail \
+	&& curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o /tmp/install.sh \
+	&& chmod +x /tmp/install.sh \
+	&& su vscode -c 'NONINTERACTIVE=1 /tmp/install.sh' \
+	&& echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /etc/profile.d/brew.sh \
+	&& rm /tmp/install.sh
+
+COPY Brewfile /tmp/Brewfile
+RUN set -euo pipefail \
+	&& chown vscode:vscode /tmp/Brewfile \
+	&& su vscode -c 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew update && brew bundle --file=/tmp/Brewfile' \
+	&& rm /tmp/Brewfile
 
 USER vscode
