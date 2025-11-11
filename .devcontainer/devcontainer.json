@@ -1,7 +1,8 @@
 {
 	"name": "Go CLI Environment",
 	"build": {
-		"dockerfile": "Dockerfile"
+		"dockerfile": "Dockerfile",
+		"context": ".."
 	},
 	"features": {
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {
@@ -14,13 +15,17 @@
 		"vscode": {
 			"extensions": [
 				"golang.go",
-				"streetsidesoftware.code-spell-checker",
 				"esbenp.prettier-vscode",
 				"dbaeumer.vscode-eslint",
-				"ms-azuretools.vscode-docker"
+				"ms-azuretools.vscode-docker",
+				"openai.chatgpt"
 			]
 		}
 	},
+	"forwardPorts": [
+		3000
+	],
 	"postCreateCommand": "lefthook install",
+	"postStartCommand": "bash -lc 'pkill -f \"casemd serve\" || true; CASEMD_WEB_ADDR=0.0.0.0:3000 nohup go run ./cmd/casemd serve > /tmp/casemd-web.log 2>&1 &'",
 	"remoteUser": "vscode"
 }

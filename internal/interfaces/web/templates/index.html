@@ -1,0 +1,43 @@
+{{ define "index" }}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>casemd Preview</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/index.css">
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>casemd Markdown Preview</h1>
+        <p>This lightweight UI helps debug Markdown parsing by converting content to CSV on demand.</p>
+        <form id="preview-form">
+          <label for="name">Source Name</label>
+          <input id="name" name="name" value="{{ .DefaultState.Name }}" placeholder="sample.md">
+          <label for="markdown">Markdown Content</label>
+          <textarea id="markdown" name="markdown" placeholder="# Major Item&#10;## Medium Item&#10;- [ ] Step 1">{{ .DefaultState.Markdown }}</textarea>
+          <div class="actions">
+            <button type="submit" id="submit">Preview CSV</button>
+            <span class="notice" id="status"></span>
+          </div>
+          <div class="error" id="error"></div>
+        </form>
+      </section>
+      <section>
+        <h2>CSV Preview</h2>
+        <div class="table-wrapper">
+          <table id="csv-table" aria-live="polite">
+            <thead id="csv-head"></thead>
+            <tbody id="csv-body">
+              <tr><td class="placeholder">Waiting for preview...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="application/json" id="default-state">{{ json .DefaultState }}</script>
+    <script src="/static/index.js" defer></script>
+  </body>
+</html>
+{{ end }}

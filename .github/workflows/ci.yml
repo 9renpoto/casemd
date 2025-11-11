@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version-file: go.mod
 
       - name: Verify module files
         run: go mod tidy
@@ -55,4 +55,3 @@ jobs:
 
       - name: Build CLI
         run: go build ./cmd/casemd
-

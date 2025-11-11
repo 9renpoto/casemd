@@ -12,3 +12,13 @@ updates:
       interval: "weekly"
     labels:
       - "Type: Maintenance"
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "Type: Maintenance"
+    groups:
+      fiber:
+        patterns:
+          - "github.com/gofiber/*"
