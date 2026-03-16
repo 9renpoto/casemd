@@ -1,5 +1,5 @@
 # Go-focused development container with CLI tooling support.
-FROM mcr.microsoft.com/devcontainers/go:1-1.22-bookworm
+FROM mcr.microsoft.com/devcontainers/go:2-1.26-bookworm
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
