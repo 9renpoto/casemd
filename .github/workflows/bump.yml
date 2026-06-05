@@ -22,7 +22,7 @@ jobs:
   bump:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - name: generate new version and save to env variable
         uses: actions/github-script@v9
