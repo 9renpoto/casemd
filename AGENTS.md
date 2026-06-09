@@ -16,4 +16,4 @@ Co-locate tests with their packages (`internal/core/parser/headings_test.go`). P
 Write imperative, present-tense commit subjects under 72 characters (`Add heading parser`). Squash micro-fixes before review and keep unrelated changes out of the same PR. Each pull request should describe the motivation, outline architectural impacts, and link tracking issues. Attach terminal output or screenshots when behavior changes. Confirm `lefthook run pre-commit` succeeds locally to avoid CI churn.
 
 ## Security & Configuration Tips
-Do not commit credentials. Update `.devcontainer/Dockerfile` whenever toolchain versions shift so contributors get identical environments, and mirror those bumps in GitHub Actions to keep build parity.
+Do not commit credentials. Update `.devcontainer/devcontainer.json` image and feature versions whenever toolchain versions shift so contributors get identical environments, and mirror those bumps in GitHub Actions to keep build parity.
