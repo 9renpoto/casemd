@@ -2,24 +2,8 @@
 	"name": "Go CLI Environment",
 	"image": "mcr.microsoft.com/devcontainers/go:2-1.26-bookworm@sha256:de99286e746c99e359edddaf0c47cbfbed34f4d6a3cd6310c99c87fa27c3c341",
 	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"moby": true,
-			"installDockerBuildx": true,
-			"version": "latest"
-		},
 		"ghcr.io/devcontainers-extra/features/lefthook-asdf:1": {},
 		"ghcr.io/michidk/devcontainers-features/typos:1": {}
-	},
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"golang.go",
-				"esbenp.prettier-vscode",
-				"dbaeumer.vscode-eslint",
-				"ms-azuretools.vscode-docker",
-				"openai.chatgpt"
-			]
-		}
 	},
 	"forwardPorts": [
 		3000
