@@ -7,10 +7,12 @@ CLI tool for converting structured Markdown inspection checklists into CSV files
 
 ## Requirements
 
-- Go 1.22+
+- Go 1.26+
 - typos-cli
 
-Using the provided devcontainer guarantees all dependencies are available. The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
+Install Go using the toolchain manager or package distribution appropriate for your development environment.
+The provided devcontainer is also available with the supporting tools preinstalled.
+The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
 
 ## Quick Start
 
@@ -129,6 +131,12 @@ lefthook run pre-commit
 # Build and test
 go build ./cmd/casemd
 go test ./...
+
+# Start the web UI
+go run ./cmd/casemd serve
+
+# In another terminal, verify the health endpoint
+curl --fail http://localhost:3000/healthz
 ```
 
 Keep documentation up to date as the clean-architecture layers evolve. Application orchestration lives in `internal/app`, interface adapters reside under `internal/interfaces`, and domain parsing logic sits in `internal/core`.
