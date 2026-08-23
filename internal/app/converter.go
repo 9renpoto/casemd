@@ -15,11 +15,6 @@ import (
 	"github.com/9renpoto/casemd/internal/core/domain"
 )
 
-// CaseParser defines the behavior required to parse test cases from Markdown.
-type CaseParser interface {
-	Parse(r io.Reader) ([]domain.Case, error)
-}
-
 // Source represents a Markdown document and the metadata needed to build a sheet.
 type Source struct {
 	Name   string
@@ -65,18 +60,19 @@ func caseRow(aCase domain.Case) []string {
 
 // MarkdownToCSV orchestrates the conversion of Markdown test cases into CSV rows.
 type MarkdownToCSV struct {
-	parser CaseParser
+	parser MarkdownParser
 }
 
 // NewMarkdownToCSV wires the converter with the provided parser implementation.
-func NewMarkdownToCSV(parser CaseParser) *MarkdownToCSV {
+func NewMarkdownToCSV(parser MarkdownParser) *MarkdownToCSV {
 	return &MarkdownToCSV{parser: parser}
 }
 
 // Convert reads Markdown sources and writes a CSV document containing every parsed case.
 func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
-	if len(sources) == 0 {
-		return fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return err
 	}
 
 	writer := csv.NewWriter(output)
@@ -84,14 +80,8 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 		return fmt.Errorf("write csv header: %w", err)
 	}
 
-	for _, source := range sources {
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			writer.Flush()
-			return fmt.Errorf("parse %s: %w", source.Name, err)
-		}
-
-		for _, aCase := range cases {
+	for _, source := range parsedSources {
+		for _, aCase := range source.Cases {
 			if err := writer.Write(caseRow(aCase)); err != nil {
 				writer.Flush()
 				return fmt.Errorf("write csv row: %w", err)
@@ -109,37 +99,33 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 
 // MarkdownToSpreadsheet orchestrates the conversion of Markdown test cases into spreadsheet sheets.
 type MarkdownToSpreadsheet struct {
-	parser CaseParser
+	parser MarkdownParser
 }
 
 // NewMarkdownToSpreadsheet wires the converter with the provided parser implementation.
-func NewMarkdownToSpreadsheet(parser CaseParser) *MarkdownToSpreadsheet {
+func NewMarkdownToSpreadsheet(parser MarkdownParser) *MarkdownToSpreadsheet {
 	return &MarkdownToSpreadsheet{parser: parser}
 }
 
 // Convert reads Markdown data and writes a spreadsheet workbook with one sheet per Markdown file.
 func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) error {
-	if len(sources) == 0 {
-		return fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return err
 	}
 
-	sheets := make([]workbookSheet, 0, len(sources))
+	sheets := make([]workbookSheet, 0, len(parsedSources))
 	nameUsage := make(map[string]int)
 	finalNames := make(map[string]struct{})
 
-	for index, source := range sources {
+	for index, source := range parsedSources {
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			return fmt.Errorf("parse %s: %w", sheetName, err)
-		}
-
-		rows := make([][]string, 0, len(cases)+1)
+		rows := make([][]string, 0, len(source.Cases)+1)
 		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
 
-		for _, aCase := range cases {
+		for _, aCase := range source.Cases {
 			rows = append(rows, caseRow(aCase))
 		}
 
@@ -151,12 +137,12 @@ func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) erro
 
 // MarkdownToGoogleSpreadsheet orchestrates the conversion of Markdown cases into Google Sheets.
 type MarkdownToGoogleSpreadsheet struct {
-	parser  CaseParser
+	parser  MarkdownParser
 	creator GoogleSpreadsheetCreator
 }
 
 // NewMarkdownToGoogleSpreadsheet wires the Google Sheets converter with the provided dependencies.
-func NewMarkdownToGoogleSpreadsheet(parser CaseParser, creator GoogleSpreadsheetCreator) *MarkdownToGoogleSpreadsheet {
+func NewMarkdownToGoogleSpreadsheet(parser MarkdownParser, creator GoogleSpreadsheetCreator) *MarkdownToGoogleSpreadsheet {
 	return &MarkdownToGoogleSpreadsheet{parser: parser, creator: creator}
 }
 
@@ -165,27 +151,23 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 	if title == "" {
 		return "", fmt.Errorf("spreadsheet title cannot be empty")
 	}
-	if len(sources) == 0 {
-		return "", fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return "", err
 	}
 
-	sheets := make([]GoogleSpreadsheetSheet, 0, len(sources))
+	sheets := make([]GoogleSpreadsheetSheet, 0, len(parsedSources))
 	nameUsage := make(map[string]int)
 	finalNames := make(map[string]struct{})
 
-	for index, source := range sources {
+	for index, source := range parsedSources {
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			return "", fmt.Errorf("parse %s: %w", sheetName, err)
-		}
-
-		rows := make([][]string, 0, len(cases)+1)
+		rows := make([][]string, 0, len(source.Cases)+1)
 		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
 
-		for _, aCase := range cases {
+		for _, aCase := range source.Cases {
 			rows = append(rows, caseRow(aCase))
 		}
 

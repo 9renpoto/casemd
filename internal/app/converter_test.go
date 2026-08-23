@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -16,12 +17,13 @@ import (
 )
 
 type mockCaseParser struct {
-	cases []domain.Case
-	err   error
+	cases       []domain.Case
+	diagnostics []domain.Diagnostic
+	err         error
 }
 
-func (m *mockCaseParser) Parse(r io.Reader) ([]domain.Case, error) {
-	return m.cases, m.err
+func (m *mockCaseParser) ParseWithDiagnostics(_ string, _ io.Reader) ([]domain.Case, []domain.Diagnostic, error) {
+	return m.cases, m.diagnostics, m.err
 }
 
 type mockGoogleCreator struct {
@@ -298,6 +300,55 @@ func TestMarkdownToGoogleSpreadsheet_CreateRequiresTitle(t *testing.T) {
 	_, err := converter.Create(context.Background(), "", sources)
 	if err == nil {
 		t.Fatalf("expected error for missing title")
+	}
+}
+
+func TestConvertersRejectDiagnosticsBeforeWriting(t *testing.T) {
+	diagnostic := domain.Diagnostic{
+		Source:  "invalid.md",
+		Line:    3,
+		Rule:    domain.RuleMissingSteps,
+		Message: "test case must contain at least one ordered step",
+	}
+	parser := &mockCaseParser{diagnostics: []domain.Diagnostic{diagnostic}}
+	sources := []Source{{Name: "invalid.md", Reader: strings.NewReader("")}}
+
+	t.Run("CSV", func(t *testing.T) {
+		var output bytes.Buffer
+		err := NewMarkdownToCSV(parser).Convert(sources, &output)
+		assertValidationError(t, err, diagnostic)
+		if output.Len() != 0 {
+			t.Fatalf("CSV output was written before validation completed: %q", output.String())
+		}
+	})
+
+	t.Run("spreadsheet", func(t *testing.T) {
+		var output bytes.Buffer
+		err := NewMarkdownToSpreadsheet(parser).Convert(sources, &output)
+		assertValidationError(t, err, diagnostic)
+		if output.Len() != 0 {
+			t.Fatalf("spreadsheet output was written before validation completed")
+		}
+	})
+
+	t.Run("Google Spreadsheet", func(t *testing.T) {
+		creator := &mockGoogleCreator{}
+		_, err := NewMarkdownToGoogleSpreadsheet(parser, creator).Create(context.Background(), "Export", sources)
+		assertValidationError(t, err, diagnostic)
+		if creator.spreadsheet.Title != "" {
+			t.Fatalf("Google Spreadsheet creator was invoked before validation completed")
+		}
+	})
+}
+
+func assertValidationError(t *testing.T, err error, want domain.Diagnostic) {
+	t.Helper()
+	var validationErr *ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError, got %v", err)
+	}
+	if !reflect.DeepEqual(validationErr.Diagnostics, []domain.Diagnostic{want}) {
+		t.Fatalf("diagnostics = %+v, want %+v", validationErr.Diagnostics, []domain.Diagnostic{want})
 	}
 }
 
