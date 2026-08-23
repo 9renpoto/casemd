@@ -19,8 +19,13 @@ func (p *coreParserAdapter) Parse(r io.Reader) ([]domain.Case, error) {
 	return parser.Parse(r)
 }
 
+func (p *coreParserAdapter) ParseWithDiagnostics(source string, r io.Reader) ([]domain.Case, []domain.Diagnostic, error) {
+	return parser.ParseWithDiagnostics(source, r)
+}
+
 func main() {
 	parserAdapter := &coreParserAdapter{}
+	validator := app.NewMarkdownValidator(parserAdapter)
 	csvConverter := app.NewMarkdownToCSV(parserAdapter)
 	spreadsheetConverter := app.NewMarkdownToSpreadsheet(parserAdapter)
 	var googleConverter cli.GoogleSpreadsheetCreator
@@ -51,7 +56,7 @@ func main() {
 		return
 	}
 
-	tool := cli.New(os.Stdout, os.Stderr, csvConverter, spreadsheetConverter, googleConverter)
+	tool := cli.New(os.Stdout, os.Stderr, validator, csvConverter, spreadsheetConverter, googleConverter)
 	application := app.New(tool)
 
 	if err := application.Run(os.Args[1:]); err != nil {
