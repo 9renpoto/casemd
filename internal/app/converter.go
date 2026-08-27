@@ -221,6 +221,11 @@ func writeWorkbook(w io.Writer, sheets []workbookSheet) error {
 		return err
 	}
 
+	if err := writeZipFile(zipWriter, "xl/styles.xml", workbookStyles); err != nil {
+		zipWriter.Close()
+		return err
+	}
+
 	for i, sheet := range sheets {
 		path := fmt.Sprintf("xl/worksheets/sheet%d.xml", i+1)
 		if err := writeZipFile(zipWriter, path, buildWorksheetXML(sheet.Rows)); err != nil {
@@ -249,10 +254,13 @@ func buildContentTypes(sheets []workbookSheet) string {
 	builder.WriteString(`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`)
 	builder.WriteString(`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`)
 	builder.WriteString(`<Default Extension="xml" ContentType="application/xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`)
 	builder.WriteString(`<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`)
 	for i := range sheets {
 		builder.WriteString(fmt.Sprintf(`<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`, i+1))
 	}
+	builder.WriteString(`<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`)
 	builder.WriteString(`</Types>`)
 	return builder.String()
 }
@@ -276,6 +284,7 @@ func buildWorkbookRelationships(sheets []workbookSheet) string {
 	for i := range sheets {
 		builder.WriteString(fmt.Sprintf(`<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>`, i+1, i+1))
 	}
+	builder.WriteString(fmt.Sprintf(`<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`, len(sheets)+1))
 	builder.WriteString(`</Relationships>`)
 	return builder.String()
 }
@@ -285,27 +294,103 @@ func buildWorksheetXML(rows [][]string) string {
 	builder.WriteString(xml.Header)
 	builder.WriteString(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`)
 
-	if len(rows) > 0 && len(rows[0]) > 0 {
-		lastCol := columnName(len(rows[0]))
+	columnCount := maxColumnCount(rows)
+	if len(rows) > 0 && columnCount > 0 {
+		lastCol := columnName(columnCount)
 		builder.WriteString(fmt.Sprintf(`<dimension ref="A1:%s%d"/>`, lastCol, len(rows)))
 	}
+
+	builder.WriteString(`<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>`)
+	builder.WriteString(`<sheetFormatPr defaultRowHeight="18"/>`)
+	builder.WriteString(`<cols>`)
+	for index, width := range spreadsheetColumnWidths {
+		columnIndex := index + 1
+		builder.WriteString(fmt.Sprintf(`<col min="%d" max="%d" width="%.1f" customWidth="1"/>`, columnIndex, columnIndex, width))
+	}
+	builder.WriteString(`</cols>`)
 
 	builder.WriteString(`<sheetData>`)
 	for i, row := range rows {
 		rowIndex := i + 1
-		builder.WriteString(fmt.Sprintf(`<row r="%d">`, rowIndex))
+		rowHeight := spreadsheetRowHeight(rowIndex, row)
+		builder.WriteString(fmt.Sprintf(`<row r="%d" ht="%.1f" customHeight="1">`, rowIndex, rowHeight))
 		for j, value := range row {
 			cellRef := fmt.Sprintf("%s%d", columnName(j+1), rowIndex)
+			styleIndex := spreadsheetStyleIndex(rowIndex, j+1)
 			if value == "" {
-				builder.WriteString(fmt.Sprintf(`<c r="%s"/>`, cellRef))
+				builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d"/>`, cellRef, styleIndex))
 				continue
 			}
-			builder.WriteString(fmt.Sprintf(`<c r="%s" t="inlineStr"><is><t>%s</t></is></c>`, cellRef, escapeCellText(value)))
+			builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d" t="inlineStr"><is><t>%s</t></is></c>`, cellRef, styleIndex, escapeCellText(value)))
 		}
 		builder.WriteString(`</row>`)
 	}
-	builder.WriteString(`</sheetData></worksheet>`)
+	builder.WriteString(`</sheetData>`)
+	if len(rows) > 0 && columnCount > 0 {
+		builder.WriteString(fmt.Sprintf(`<autoFilter ref="A1:%s%d"/>`, columnName(columnCount), len(rows)))
+	}
+	builder.WriteString(`</worksheet>`)
 	return builder.String()
+}
+
+var spreadsheetColumnWidths = []float64{18, 18, 24, 42, 42, 14, 13, 16, 32}
+
+func maxColumnCount(rows [][]string) int {
+	count := 0
+	for _, row := range rows {
+		if len(row) > count {
+			count = len(row)
+		}
+	}
+	return count
+}
+
+func spreadsheetStyleIndex(row, column int) int {
+	if row == 1 {
+		return 1
+	}
+	if column <= 5 {
+		return 2
+	}
+	if column == 7 {
+		return 4
+	}
+	return 3
+}
+
+func spreadsheetRowHeight(rowIndex int, row []string) float64 {
+	if rowIndex == 1 {
+		return 30
+	}
+
+	maxLines := 1
+	for index, value := range row {
+		width := 18
+		if index < len(spreadsheetColumnWidths) {
+			width = int(spreadsheetColumnWidths[index])
+		}
+
+		lines := 0
+		for _, segment := range strings.Split(value, "\n") {
+			lineCount := (utf8.RuneCountInString(segment) + width - 1) / width
+			if lineCount < 1 {
+				lineCount = 1
+			}
+			lines += lineCount
+		}
+		if lines > maxLines {
+			maxLines = lines
+		}
+	}
+
+	height := float64(maxLines*15 + 6)
+	if height < 36 {
+		return 36
+	}
+	if height > 180 {
+		return 180
+	}
+	return height
 }
 
 func escapeCellText(value string) string {
@@ -464,3 +549,31 @@ const coreProperties = `<?xml version="1.0" encoding="UTF-8"?>
   <dc:creator>casemd</dc:creator>
   <cp:lastModifiedBy>casemd</cp:lastModifiedBy>
 </cp:coreProperties>`
+
+const workbookStyles = `<?xml version="1.0" encoding="UTF-8"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFD9E2F3"/></left><right style="thin"><color rgb="FFD9E2F3"/></right><top style="thin"><color rgb="FFD9E2F3"/></top><bottom style="thin"><color rgb="FFD9E2F3"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="5">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="14" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`
