@@ -9,11 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/9renpoto/casemd/internal/core/domain"
+	"github.com/9renpoto/casemd/internal/core/parser"
 )
 
 type mockCaseParser struct {
@@ -145,7 +148,145 @@ func TestMarkdownToSpreadsheet_ConvertMultipleSources(t *testing.T) {
 	}
 }
 
+func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "human-first-scenario.md")
+	fixture, err := os.Open(fixturePath)
+	if err != nil {
+		t.Fatalf("open fixture: %v", err)
+	}
+	defer fixture.Close()
+
+	cases, diagnostics, err := parser.ParseWithDiagnostics(fixturePath, fixture)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("fixture diagnostics = %+v, want none", diagnostics)
+	}
+
+	var output bytes.Buffer
+	converter := NewMarkdownToSpreadsheet(&mockCaseParser{cases: cases})
+	if err := converter.Convert([]Source{{Name: fixturePath, Reader: strings.NewReader("")}}, &output); err != nil {
+		t.Fatalf("Convert() returned an unexpected error: %v", err)
+	}
+
+	worksheet := readWorksheet(t, output.Bytes(), 1)
+	if worksheet.SheetViews.Views[0].Pane.State != "frozen" || worksheet.SheetViews.Views[0].Pane.YSplit != 1 || worksheet.SheetViews.Views[0].Pane.TopLeftCell != "A2" {
+		t.Fatalf("unexpected frozen pane: %+v", worksheet.SheetViews.Views[0].Pane)
+	}
+	if worksheet.AutoFilter.Ref != "A1:I4" {
+		t.Fatalf("auto filter ref = %q, want %q", worksheet.AutoFilter.Ref, "A1:I4")
+	}
+
+	if len(worksheet.Columns.Columns) != len(spreadsheetColumnWidths) {
+		t.Fatalf("column count = %d, want %d", len(worksheet.Columns.Columns), len(spreadsheetColumnWidths))
+	}
+	for index, column := range worksheet.Columns.Columns {
+		if column.Min != index+1 || column.Max != index+1 || column.Width != spreadsheetColumnWidths[index] || column.CustomWidth != 1 {
+			t.Errorf("column %d = %+v, want width %.1f", index+1, column, spreadsheetColumnWidths[index])
+		}
+	}
+
+	if len(worksheet.SheetData.Rows) != 4 {
+		t.Fatalf("row count = %d, want 4", len(worksheet.SheetData.Rows))
+	}
+	headerRow := worksheet.SheetData.Rows[0]
+	if headerRow.Height != 30 || headerRow.CustomHeight != 1 {
+		t.Fatalf("header row presentation = %+v", headerRow)
+	}
+	for _, cell := range headerRow.Cells {
+		if cell.Style != 1 {
+			t.Errorf("header cell %s style = %d, want 1", cell.Reference, cell.Style)
+		}
+	}
+
+	dataRow := worksheet.SheetData.Rows[1]
+	if dataRow.Height <= 36 {
+		t.Fatalf("long-content row height = %.1f, want greater than 36", dataRow.Height)
+	}
+	wantStyles := []int{2, 2, 2, 2, 2, 3, 4, 3, 3}
+	for index, want := range wantStyles {
+		if got := dataRow.Cells[index].Style; got != want {
+			t.Errorf("data cell %s style = %d, want %d", dataRow.Cells[index].Reference, got, want)
+		}
+	}
+	if got := dataRow.Cells[3].Value(); !strings.Contains(got, "\n") || !strings.Contains(got, "Save the profile") {
+		t.Errorf("validation steps did not preserve multiline content: %q", got)
+	}
+	if got := dataRow.Cells[4].Value(); !strings.Contains(got, "\n") || !strings.Contains(got, "* [ ]") {
+		t.Errorf("checkpoints did not preserve task-list content: %q", got)
+	}
+
+	styles := readStyles(t, output.Bytes())
+	if len(styles.CellXfs.Xfs) != 5 {
+		t.Fatalf("cell style count = %d, want 5", len(styles.CellXfs.Xfs))
+	}
+	headerStyle := styles.CellXfs.Xfs[1]
+	if headerStyle.FontID != 1 || headerStyle.FillID != 2 || !headerStyle.Alignment.WrapText || headerStyle.Alignment.Vertical != "center" {
+		t.Fatalf("unexpected header style: %+v", headerStyle)
+	}
+	definitionStyle := styles.CellXfs.Xfs[2]
+	if definitionStyle.FillID != 0 || !definitionStyle.Alignment.WrapText || definitionStyle.Alignment.Vertical != "top" {
+		t.Fatalf("unexpected definition style: %+v", definitionStyle)
+	}
+	executionStyle := styles.CellXfs.Xfs[3]
+	if executionStyle.FillID == definitionStyle.FillID || !executionStyle.Alignment.WrapText || executionStyle.Alignment.Vertical != "top" {
+		t.Fatalf("unexpected execution style: %+v", executionStyle)
+	}
+	if dateStyle := styles.CellXfs.Xfs[4]; dateStyle.NumFmtID != 14 || dateStyle.FillID != executionStyle.FillID {
+		t.Fatalf("unexpected test-date style: %+v", dateStyle)
+	}
+
+	contentTypes := readZipFile(t, output.Bytes(), "[Content_Types].xml")
+	for _, part := range []string{`/docProps/core.xml`, `/docProps/app.xml`, `/xl/styles.xml`} {
+		if !bytes.Contains(contentTypes, []byte(part)) {
+			t.Errorf("content types do not include %s", part)
+		}
+	}
+	workbookRelationships := readZipFile(t, output.Bytes(), "xl/_rels/workbook.xml.rels")
+	if !bytes.Contains(workbookRelationships, []byte(`relationships/styles`)) {
+		t.Fatalf("workbook relationships do not include styles.xml")
+	}
+}
+
 func readSheetRows(t *testing.T, data []byte, sheetIndex int) [][]string {
+	t.Helper()
+
+	ws := readWorksheet(t, data, sheetIndex)
+	rows := make([][]string, len(ws.SheetData.Rows))
+	for i, row := range ws.SheetData.Rows {
+		values := make([]string, len(row.Cells))
+		for j, cell := range row.Cells {
+			values[j] = cell.Value()
+		}
+		rows[i] = values
+	}
+	return rows
+}
+
+func readWorksheet(t *testing.T, data []byte, sheetIndex int) worksheet {
+	t.Helper()
+
+	content := readZipFile(t, data, fmt.Sprintf("xl/worksheets/sheet%d.xml", sheetIndex))
+	var ws worksheet
+	if err := xml.Unmarshal(content, &ws); err != nil {
+		t.Fatalf("unmarshal sheet: %v", err)
+	}
+	return ws
+}
+
+func readStyles(t *testing.T, data []byte) styleSheet {
+	t.Helper()
+
+	content := readZipFile(t, data, "xl/styles.xml")
+	var styles styleSheet
+	if err := xml.Unmarshal(content, &styles); err != nil {
+		t.Fatalf("unmarshal styles: %v", err)
+	}
+	return styles
+}
+
+func readZipFile(t *testing.T, data []byte, target string) []byte {
 	t.Helper()
 
 	reader := bytes.NewReader(data)
@@ -154,40 +295,23 @@ func readSheetRows(t *testing.T, data []byte, sheetIndex int) [][]string {
 		t.Fatalf("open zip: %v", err)
 	}
 
-	target := fmt.Sprintf("xl/worksheets/sheet%d.xml", sheetIndex)
 	for _, file := range zipReader.File {
 		if file.Name != target {
 			continue
 		}
-
 		rc, err := file.Open()
 		if err != nil {
-			t.Fatalf("open sheet: %v", err)
+			t.Fatalf("open %s: %v", target, err)
 		}
 		defer rc.Close()
-
 		content, err := io.ReadAll(rc)
 		if err != nil {
-			t.Fatalf("read sheet: %v", err)
+			t.Fatalf("read %s: %v", target, err)
 		}
-
-		var ws worksheet
-		if err := xml.Unmarshal(content, &ws); err != nil {
-			t.Fatalf("unmarshal sheet: %v", err)
-		}
-
-		rows := make([][]string, len(ws.SheetData.Rows))
-		for i, row := range ws.SheetData.Rows {
-			values := make([]string, len(row.Cells))
-			for j, cell := range row.Cells {
-				values[j] = cell.Value()
-			}
-			rows[i] = values
-		}
-		return rows
+		return content
 	}
 
-	t.Fatalf("sheet %d not found", sheetIndex)
+	t.Fatalf("%s not found", target)
 	return nil
 }
 
@@ -353,8 +477,41 @@ func assertValidationError(t *testing.T, err error, want domain.Diagnostic) {
 }
 
 type worksheet struct {
-	XMLName   xml.Name  `xml:"worksheet"`
-	SheetData sheetData `xml:"sheetData"`
+	XMLName    xml.Name     `xml:"worksheet"`
+	SheetViews sheetViews   `xml:"sheetViews"`
+	Columns    sheetColumns `xml:"cols"`
+	SheetData  sheetData    `xml:"sheetData"`
+	AutoFilter autoFilter   `xml:"autoFilter"`
+}
+
+type sheetViews struct {
+	Views []sheetView `xml:"sheetView"`
+}
+
+type sheetView struct {
+	Pane sheetPane `xml:"pane"`
+}
+
+type sheetPane struct {
+	YSplit      float64 `xml:"ySplit,attr"`
+	TopLeftCell string  `xml:"topLeftCell,attr"`
+	ActivePane  string  `xml:"activePane,attr"`
+	State       string  `xml:"state,attr"`
+}
+
+type sheetColumns struct {
+	Columns []sheetColumn `xml:"col"`
+}
+
+type sheetColumn struct {
+	Min         int     `xml:"min,attr"`
+	Max         int     `xml:"max,attr"`
+	Width       float64 `xml:"width,attr"`
+	CustomWidth int     `xml:"customWidth,attr"`
+}
+
+type autoFilter struct {
+	Ref string `xml:"ref,attr"`
 }
 
 type sheetData struct {
@@ -362,10 +519,15 @@ type sheetData struct {
 }
 
 type sheetRow struct {
-	Cells []sheetCell `xml:"c"`
+	Reference    int         `xml:"r,attr"`
+	Height       float64     `xml:"ht,attr"`
+	CustomHeight int         `xml:"customHeight,attr"`
+	Cells        []sheetCell `xml:"c"`
 }
 
 type sheetCell struct {
+	Reference string       `xml:"r,attr"`
+	Style     int          `xml:"s,attr"`
 	InlineStr inlineString `xml:"is"`
 }
 
@@ -375,6 +537,29 @@ type inlineString struct {
 
 func (c sheetCell) Value() string {
 	return c.InlineStr.Text
+}
+
+type styleSheet struct {
+	CellXfs styleCellXfs `xml:"cellXfs"`
+}
+
+type styleCellXfs struct {
+	Count int       `xml:"count,attr"`
+	Xfs   []styleXF `xml:"xf"`
+}
+
+type styleXF struct {
+	NumFmtID  int            `xml:"numFmtId,attr"`
+	FontID    int            `xml:"fontId,attr"`
+	FillID    int            `xml:"fillId,attr"`
+	BorderID  int            `xml:"borderId,attr"`
+	Alignment styleAlignment `xml:"alignment"`
+}
+
+type styleAlignment struct {
+	Horizontal string `xml:"horizontal,attr"`
+	Vertical   string `xml:"vertical,attr"`
+	WrapText   bool   `xml:"wrapText,attr"`
 }
 
 type workbookFile struct {
