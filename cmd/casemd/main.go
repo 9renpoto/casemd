@@ -13,6 +13,8 @@ import (
 	"github.com/9renpoto/casemd/internal/interfaces/web"
 )
 
+var version = "dev"
+
 type coreParserAdapter struct{}
 
 func (p *coreParserAdapter) Parse(r io.Reader) ([]domain.Case, error) {
@@ -24,6 +26,11 @@ func (p *coreParserAdapter) ParseWithDiagnostics(source string, r io.Reader) ([]
 }
 
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "version") {
+		fmt.Fprintln(os.Stdout, version)
+		return
+	}
+
 	parserAdapter := &coreParserAdapter{}
 	validator := app.NewMarkdownValidator(parserAdapter)
 	csvConverter := app.NewMarkdownToCSV(parserAdapter)

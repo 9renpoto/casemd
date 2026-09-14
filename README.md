@@ -14,6 +14,45 @@ Install Go using the toolchain manager or package distribution appropriate for y
 The provided devcontainer is also available with the supporting tools preinstalled.
 The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
 
+## Installation
+
+Install the latest released version with Homebrew:
+
+```sh
+brew install 9renpoto/tap/casemd
+```
+
+Verify the installed version:
+
+```sh
+casemd --version
+```
+
+## Releases
+
+The `Bump version` workflow runs every Tuesday and can also be dispatched manually for the intended SemVer increment.
+If no GitHub Release exists yet, a `minor` bump bootstraps `v0.1.0`.
+It creates a draft pull request from the `release` branch containing the generated CHANGELOG entry.
+
+Review the draft pull request's version, release notes, labels, and milestone, then merge it after CI succeeds.
+After the merge, make sure the GitHub Actions secret `HOMEBREW_TAP_GITHUB_TOKEN` has `contents: write` permission for `9renpoto/homebrew-tap`, and tag the merged commit with its CHANGELOG version:
+
+```sh
+git checkout main
+git pull --ff-only
+git tag --annotate vX.Y.Z --message "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+Pushing the tag triggers the release workflow, which creates a GitHub Release, uploads Darwin and Linux archives with `checksums.txt`, and updates the Homebrew tap.
+
+After it completes, verify the published install path in a clean environment:
+
+```sh
+brew install 9renpoto/tap/casemd
+casemd --version
+```
+
 ## Quick Start
 
 The repository ships with `notes.md` and `follow-up.md`, which replicate the extended example below so you can exercise the CLI immediately.
