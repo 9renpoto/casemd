@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: casemd
+
+builds:
+  - id: casemd
+    main: ./cmd/casemd
+    binary: casemd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: default
+    ids:
+      - casemd
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  draft: false
+
+# A cask is Homebrew's supported mechanism for installing pre-built binaries.
+# The token must have contents:write access to 9renpoto/homebrew-tap.
+homebrew_casks:
+  - name: casemd
+    ids:
+      - default
+    binaries:
+      - casemd
+    description: Convert structured Markdown inspection checklists into CSV files and spreadsheets.
+    homepage: https://github.com/9renpoto/casemd
+    repository:
+      owner: 9renpoto
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
