@@ -241,6 +241,21 @@ The repository includes [`notes.md`](notes.md) and [`follow-up.md`](follow-up.md
 
 </details>
 
+## eval-spec-maker compatibility
+
+casemd is inspired by [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), but it is not a drop-in compatible replacement.
+
+| Behavior | casemd v1 | eval-spec-maker |
+| --- | --- | --- |
+| `#` heading | Optional document title, at most once | Worksheet category, repeatable |
+| Worksheet unit | Each input file | Each `#` heading |
+| Column headers | casemd execution-record contract | Fixed Japanese labels |
+| Markdown list content | Preserve text after the list marker | Interpret Markdown tokens in the list content |
+| XLSX layout | Human-focused casemd layout | eval-spec-maker layout |
+
+Use repeated `--input` options when a casemd workbook needs multiple worksheets.
+Read [`ADR-0002-define-eval-spec-maker-compatibility-boundary.md`](ADR-0002-define-eval-spec-maker-compatibility-boundary.md) before migrating existing eval-spec-maker specifications.
+
 ## API
 
 The preview server provides the following HTTP endpoints when `casemd serve` is running:
