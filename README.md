@@ -37,6 +37,15 @@ The generated spreadsheet contains predefined columns (Major Item, Medium Item, 
 Each Markdown file becomes its own sheet inside the workbook.
 Passing `--google-spreadsheet-title` uploads the same structure to Google Sheets using the bearer token exposed through `GOOGLE_SHEETS_ACCESS_TOKEN`.
 
+## Web UI scenario tests
+
+The manual scenario checklist for the Web UI is maintained in [`scenarios/web-ui.md`](scenarios/web-ui.md) in Japanese.
+It is limited to browser-visible behavior such as page loading, preview conversion, error display, keyboard interaction, and responsive layout.
+The sample cases intentionally mix full-width Japanese characters with half-width Latin characters, numbers, symbols, and long text for layout dogfooding.
+
+After a change is merged into `main`, CI converts this Markdown file to `web-ui-scenarios.xlsx` and publishes it as the `web-ui-scenarios` workflow artifact.
+Execution results, test dates, testers, and notes can be recorded in the generated workbook.
+
 ## Input Format
 
 Markdown files should express each inspection case with nested headings for the hierarchy and lists for the execution details:
