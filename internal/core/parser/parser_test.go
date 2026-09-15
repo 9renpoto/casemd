@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -100,6 +102,29 @@ func TestParse(t *testing.T) {
 
 	if !reflect.DeepEqual(actualCases, expectedCases) {
 		t.Errorf("Parse() returned %+v, want %+v", actualCases, expectedCases)
+	}
+}
+
+func TestValidateRejectsEvalSpecMakerMultipleCategories(t *testing.T) {
+	const source = "eval-spec-maker-multiple-categories.md"
+	path := filepath.Join("..", "..", "..", "testdata", source)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	_, diagnostics, err := ParseWithDiagnostics(source, strings.NewReader(string(data)))
+	if err != nil {
+		t.Fatalf("ParseWithDiagnostics() returned an unexpected error: %v", err)
+	}
+
+	if len(diagnostics) != 1 {
+		t.Fatalf("diagnostic count = %d, want 1: %+v", len(diagnostics), diagnostics)
+	}
+
+	diagnostic := diagnostics[0]
+	if diagnostic.Source != source || diagnostic.Line != 10 || diagnostic.Rule != domain.RuleDocumentTitle {
+		t.Errorf("diagnostic = %+v, want document-title at %s:10", diagnostic, source)
 	}
 }
 

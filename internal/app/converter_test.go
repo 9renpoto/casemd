@@ -249,6 +249,55 @@ func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
 	}
 }
 
+func TestMarkdownToSpreadsheet_PreservesEvalSpecMakerMixedWidthContent(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "eval-spec-maker-mixed-width.md")
+	fixture, err := os.Open(fixturePath)
+	if err != nil {
+		t.Fatalf("open fixture: %v", err)
+	}
+	defer fixture.Close()
+
+	cases, diagnostics, err := parser.ParseWithDiagnostics(fixturePath, fixture)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("fixture diagnostics = %+v, want none", diagnostics)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("case count = %d, want 1", len(cases))
+	}
+
+	var output bytes.Buffer
+	converter := NewMarkdownToSpreadsheet(&mockCaseParser{cases: cases})
+	if err := converter.Convert([]Source{{Name: fixturePath, Reader: strings.NewReader("")}}, &output); err != nil {
+		t.Fatalf("Convert() returned an unexpected error: %v", err)
+	}
+
+	worksheet := readWorksheet(t, output.Bytes(), 1)
+	dataRow := worksheet.SheetData.Rows[1]
+	steps := dataRow.Cells[3].Value()
+	for _, want := range []string{"`user@example.com`", "`山田 Taro 01`", "`> # カテゴリ`", "VeryLongProductCode-ABC123456789"} {
+		if !strings.Contains(steps, want) {
+			t.Errorf("validation steps = %q, want %q", steps, want)
+		}
+	}
+
+	checkpoints := dataRow.Cells[4].Value()
+	for _, want := range []string{"「変更を保存しました」", "`-_/`", "`税込￥1,280`", "`2026/09/15`"} {
+		if !strings.Contains(checkpoints, want) {
+			t.Errorf("checkpoints = %q, want %q", checkpoints, want)
+		}
+	}
+
+	if !strings.Contains(steps, "\n") || !strings.Contains(checkpoints, "\n") {
+		t.Errorf("expected multiline steps and checkpoints, got steps %q and checkpoints %q", steps, checkpoints)
+	}
+	if dataRow.Height <= 36 {
+		t.Errorf("mixed-width row height = %.1f, want greater than 36", dataRow.Height)
+	}
+}
+
 func readSheetRows(t *testing.T, data []byte, sheetIndex int) [][]string {
 	t.Helper()
 
