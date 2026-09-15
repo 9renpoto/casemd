@@ -76,8 +76,9 @@ func TestMarkdownToCSV_Convert(t *testing.T) {
 
 	expectedRecords := [][]string{
 		spreadsheetHeaders,
-		caseRow(mockCases[0]),
-		caseRow(mockCases[1]),
+		caseRow(mockCases[0], "* [ ] Check 1"),
+		caseRow(mockCases[0], "* [ ] Check 2"),
+		caseRow(mockCases[1], "* [ ] Success"),
 	}
 
 	if !reflect.DeepEqual(records, expectedRecords) {
@@ -117,8 +118,9 @@ func TestMarkdownToSpreadsheet_Convert(t *testing.T) {
 
 	expectedRows := [][]string{
 		append([]string(nil), spreadsheetHeaders...),
-		caseRow(mockCases[0]),
-		caseRow(mockCases[1]),
+		caseRow(mockCases[0], "* [ ] Check 1"),
+		caseRow(mockCases[0], "* [ ] Check 2"),
+		caseRow(mockCases[1], "* [ ] Success"),
 	}
 
 	if !reflect.DeepEqual(rows, expectedRows) {
@@ -174,8 +176,8 @@ func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
 	if worksheet.SheetViews.Views[0].Pane.State != "frozen" || worksheet.SheetViews.Views[0].Pane.YSplit != 1 || worksheet.SheetViews.Views[0].Pane.TopLeftCell != "A2" {
 		t.Fatalf("unexpected frozen pane: %+v", worksheet.SheetViews.Views[0].Pane)
 	}
-	if worksheet.AutoFilter.Ref != "A1:I4" {
-		t.Fatalf("auto filter ref = %q, want %q", worksheet.AutoFilter.Ref, "A1:I4")
+	if worksheet.AutoFilter.Ref != "A1:I9" {
+		t.Fatalf("auto filter ref = %q, want %q", worksheet.AutoFilter.Ref, "A1:I9")
 	}
 
 	if len(worksheet.Columns.Columns) != len(spreadsheetColumnWidths) {
@@ -187,8 +189,8 @@ func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
 		}
 	}
 
-	if len(worksheet.SheetData.Rows) != 4 {
-		t.Fatalf("row count = %d, want 4", len(worksheet.SheetData.Rows))
+	if len(worksheet.SheetData.Rows) != 9 {
+		t.Fatalf("row count = %d, want 9", len(worksheet.SheetData.Rows))
 	}
 	headerRow := worksheet.SheetData.Rows[0]
 	if headerRow.Height != 30 || headerRow.CustomHeight != 1 {
@@ -213,8 +215,8 @@ func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
 	if got := dataRow.Cells[3].Value(); !strings.Contains(got, "\n") || !strings.Contains(got, "Save the profile") {
 		t.Errorf("validation steps did not preserve multiline content: %q", got)
 	}
-	if got := dataRow.Cells[4].Value(); !strings.Contains(got, "\n") || !strings.Contains(got, "* [ ]") {
-		t.Errorf("checkpoints did not preserve task-list content: %q", got)
+	if got := dataRow.Cells[4].Value(); !strings.Contains(got, "* [ ]") {
+		t.Errorf("checkpoint did not preserve task-list content: %q", got)
 	}
 
 	styles := readStyles(t, output.Bytes())
@@ -246,6 +248,62 @@ func TestMarkdownToSpreadsheet_HumanFirstFormatting(t *testing.T) {
 	workbookRelationships := readZipFile(t, output.Bytes(), "xl/_rels/workbook.xml.rels")
 	if !bytes.Contains(workbookRelationships, []byte(`relationships/styles`)) {
 		t.Fatalf("workbook relationships do not include styles.xml")
+	}
+}
+
+func TestMarkdownToSpreadsheet_PreservesEvalSpecMakerMixedWidthContent(t *testing.T) {
+	fixturePath := filepath.Join("..", "..", "testdata", "eval-spec-maker-mixed-width.md")
+	fixture, err := os.Open(fixturePath)
+	if err != nil {
+		t.Fatalf("open fixture: %v", err)
+	}
+	defer fixture.Close()
+
+	cases, diagnostics, err := parser.ParseWithDiagnostics(fixturePath, fixture)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("fixture diagnostics = %+v, want none", diagnostics)
+	}
+	if len(cases) != 1 {
+		t.Fatalf("case count = %d, want 1", len(cases))
+	}
+
+	var output bytes.Buffer
+	converter := NewMarkdownToSpreadsheet(&mockCaseParser{cases: cases})
+	if err := converter.Convert([]Source{{Name: fixturePath, Reader: strings.NewReader("")}}, &output); err != nil {
+		t.Fatalf("Convert() returned an unexpected error: %v", err)
+	}
+
+	worksheet := readWorksheet(t, output.Bytes(), 1)
+	if len(worksheet.SheetData.Rows) != 4 {
+		t.Fatalf("row count = %d, want 4", len(worksheet.SheetData.Rows))
+	}
+
+	wantCheckpoints := []string{
+		"* [ ] 「変更を保存しました」と `Done` が表示される。",
+		"* [ ] 全角文字 `山田`、半角英数字 `Taro 01`、記号 `-_/` が欠落せず表示される。",
+		"* [ ] `税込￥1,280` と `2026/09/15` が改行や列幅を壊さない。",
+	}
+	for index, wantCheckpoint := range wantCheckpoints {
+		dataRow := worksheet.SheetData.Rows[index+1]
+		steps := dataRow.Cells[3].Value()
+		for _, want := range []string{"`user@example.com`", "`山田 Taro 01`", "`> # カテゴリ`", "VeryLongProductCode-ABC123456789"} {
+			if !strings.Contains(steps, want) {
+				t.Errorf("row %d validation steps = %q, want %q", index+2, steps, want)
+			}
+		}
+
+		if checkpoint := dataRow.Cells[4].Value(); checkpoint != wantCheckpoint {
+			t.Errorf("row %d checkpoint = %q, want %q", index+2, checkpoint, wantCheckpoint)
+		}
+		if !strings.Contains(steps, "\n") {
+			t.Errorf("row %d validation steps do not preserve line breaks: %q", index+2, steps)
+		}
+		if dataRow.Height <= 36 {
+			t.Errorf("row %d mixed-width row height = %.1f, want greater than 36", index+2, dataRow.Height)
+		}
 	}
 }
 

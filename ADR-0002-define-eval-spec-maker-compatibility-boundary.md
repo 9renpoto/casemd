@@ -46,6 +46,9 @@ Column headers and XLSX styles remain part of casemd's human-focused execution-r
 番号付きリストとタスクリストの各行は、リスト記号の後ろをそのまま保持します。
 Each ordered-list or task-list line preserves the text after its list marker.
 
+タスクリストの各行は、個別の実施記録列を持つ XLSX 行へ展開します。
+Each task-list line expands into an XLSX row with its own execution-record columns.
+
 インラインコード、引用、全角文字、半角文字は rich Markdown として再解釈しません。
 Inline code, block quotes, full-width characters, and half-width characters are not reinterpreted as rich Markdown.
 

@@ -201,7 +201,8 @@ Use headings to define the inspection hierarchy and lists to define execution de
 | Task list such as `* [ ]` | Checkpoints | Checkpoints |
 
 The generated table also contains blank `Result`, `Test Date`, `Tester`, and `Notes` columns for execution records.
-Validation steps and checkpoints retain their order and line breaks.
+Each checkpoint becomes a separate row so its execution record is independent.
+Validation steps retain their order and line breaks on every checkpoint row.
 
 Example:
 
@@ -235,7 +236,8 @@ The repository includes [`notes.md`](notes.md) and [`follow-up.md`](follow-up.md
 | `* [ ]` などのタスクリスト | チェックポイント | Checkpoints |
 
 生成される表には、実行記録用に `Result`、`Test Date`、`Tester`、`Notes` の空列も含まれます。
-検証手順とチェックポイントは順序と改行を保持します。
+チェックポイントは 1 件ずつ行へ展開されるため、個別に実施記録を残せます。
+検証手順は各チェックポイント行で順序と改行を保持します。
 
 リポジトリには実行例として [`notes.md`](notes.md) と [`follow-up.md`](follow-up.md) が含まれています。
 
