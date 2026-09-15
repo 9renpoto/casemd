@@ -6,6 +6,9 @@ This directory contains the project's durable design decisions and shared termin
 
 - [`adr/`](adr/) contains Architecture Decision Records.
 - [`glossary.md`](glossary.md) defines terms used across the product and its documentation.
+- `guides/` contains task-focused documentation for people using casemd.
+- The repository README is the project entry point and links here for detailed documentation.
+- This directory is the source for the published documentation site.
 
 ADR files use a four-digit sequence and a kebab-case decision title: `NNNN-decision-title.md`. English is the primary document language. Japanese translations are kept in a `<details>` block at the end of the same document.
 
@@ -24,6 +27,9 @@ When a decision changes, update the ADR status and add a new ADR for a material 
 
 - [`adr/`](adr/) にArchitecture Decision Recordを置きます。
 - [`glossary.md`](glossary.md) にプロダクトと文書で使う用語を定義します。
+- `guides/` に casemd を使う人向けのタスク中心の文書を置きます。
+- リポジトリの README はプロジェクトの入口とし、詳細な文書はこのディレクトリへリンクします。
+- このディレクトリを公開ドキュメントサイトのソースとします。
 
 ADRは4桁の連番とkebab-caseの決定タイトルを使います。英語を標準表示の本文とし、日本語訳は同じ文書の末尾にある `<details>` ブロックへ置きます。
 
