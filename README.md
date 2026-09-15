@@ -139,4 +139,24 @@ go run ./cmd/casemd serve
 curl --fail http://localhost:3000/healthz
 ```
 
+## Container Image
+
+The web UI is published as a small multi-architecture image at `ghcr.io/9renpoto/casemd`.
+
+The image supports Linux `amd64` and `arm64` and listens on port `3000`.
+
+Only two tags are published for each release: `latest` and the exact SemVer version.
+
+Use a version tag in production when you need reproducible deployments.
+
+```sh
+docker pull ghcr.io/9renpoto/casemd:latest
+docker run --detach --name casemd --publish 3000:3000 ghcr.io/9renpoto/casemd:latest
+
+# Check the service
+curl --fail http://localhost:3000/healthz
+```
+
+Create a GitHub release with a tag such as `v0.1.0` to publish `latest` and `0.1.0`.
+
 Keep documentation up to date as the clean-architecture layers evolve. Application orchestration lives in `internal/app`, interface adapters reside under `internal/interfaces`, and domain parsing logic sits in `internal/core`.
