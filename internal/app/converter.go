@@ -35,7 +35,20 @@ type GoogleSpreadsheet struct {
 // GoogleSpreadsheetSheet describes a single Google Sheets worksheet and its data.
 type GoogleSpreadsheetSheet struct {
 	Title string
-	Rows  [][]string
+	Rows  [][]SpreadsheetCell
+}
+
+// SpreadsheetCell is text ready for a spreadsheet cell.
+// InlineCode ranges use UTF-8 byte offsets into Text.
+type SpreadsheetCell struct {
+	Text       string
+	InlineCode []InlineCodeRange
+}
+
+// InlineCodeRange marks a code-formatted range in a SpreadsheetCell.
+type InlineCodeRange struct {
+	Start int
+	End   int
 }
 
 var spreadsheetHeaders = []string{
@@ -44,17 +57,83 @@ var spreadsheetHeaders = []string{
 	"Result", "Test Date", "Tester", "Notes",
 }
 
-func caseRows(aCase domain.Case) [][]string {
+func caseRows(aCase domain.Case) [][]SpreadsheetCell {
 	checkpoints := aCase.Checkpoints
 	if len(checkpoints) == 0 {
 		checkpoints = []string{""}
 	}
 
-	rows := make([][]string, 0, len(checkpoints))
+	rows := make([][]SpreadsheetCell, 0, len(checkpoints))
 	for _, checkpoint := range checkpoints {
-		rows = append(rows, caseRow(aCase, checkpoint))
+		rows = append(rows, spreadsheetCells(caseRow(aCase, checkpoint)))
 	}
 	return rows
+}
+
+func spreadsheetCells(values []string) []SpreadsheetCell {
+	cells := make([]SpreadsheetCell, len(values))
+	for i, value := range values {
+		cells[i] = parseInlineCode(value)
+	}
+	return cells
+}
+
+// parseInlineCode renders matched Markdown backtick spans as text with code ranges.
+// Unmatched delimiters remain literal so authors never lose input while editing a scenario.
+func parseInlineCode(value string) SpreadsheetCell {
+	var text strings.Builder
+	ranges := make([]InlineCodeRange, 0)
+
+	for index := 0; index < len(value); {
+		if value[index] == '\\' && index+1 < len(value) && value[index+1] == '`' {
+			text.WriteByte('`')
+			index += 2
+			continue
+		}
+		if value[index] != '`' {
+			text.WriteByte(value[index])
+			index++
+			continue
+		}
+
+		delimiterLength := 1
+		for index+delimiterLength < len(value) && value[index+delimiterLength] == '`' {
+			delimiterLength++
+		}
+		closing := findClosingBacktickRun(value, index+delimiterLength, delimiterLength)
+		if closing < 0 {
+			text.WriteString(value[index : index+delimiterLength])
+			index += delimiterLength
+			continue
+		}
+
+		start := text.Len()
+		text.WriteString(value[index+delimiterLength : closing])
+		end := text.Len()
+		if start != end {
+			ranges = append(ranges, InlineCodeRange{Start: start, End: end})
+		}
+		index = closing + delimiterLength
+	}
+
+	return SpreadsheetCell{Text: text.String(), InlineCode: ranges}
+}
+
+func findClosingBacktickRun(value string, from, delimiterLength int) int {
+	for index := from; index < len(value); index++ {
+		if value[index] != '`' {
+			continue
+		}
+		runLength := 1
+		for index+runLength < len(value) && value[index+runLength] == '`' {
+			runLength++
+		}
+		if runLength == delimiterLength {
+			return index
+		}
+		index += runLength - 1
+	}
+	return -1
 }
 
 func caseRow(aCase domain.Case, checkpoint string) []string {
@@ -96,7 +175,7 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 	for _, source := range parsedSources {
 		for _, aCase := range source.Cases {
 			for _, row := range caseRows(aCase) {
-				if err := writer.Write(row); err != nil {
+				if err := writer.Write(cellTexts(row)); err != nil {
 					writer.Flush()
 					return fmt.Errorf("write csv row: %w", err)
 				}
@@ -137,8 +216,8 @@ func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) erro
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		rows := make([][]string, 0, len(source.Cases)+1)
-		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
+		rows := make([][]SpreadsheetCell, 0, len(source.Cases)+1)
+		rows = append(rows, spreadsheetCells(spreadsheetHeaders))
 
 		for _, aCase := range source.Cases {
 			rows = append(rows, caseRows(aCase)...)
@@ -179,8 +258,8 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		rows := make([][]string, 0, len(source.Cases)+1)
-		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
+		rows := make([][]SpreadsheetCell, 0, len(source.Cases)+1)
+		rows = append(rows, spreadsheetCells(spreadsheetHeaders))
 
 		for _, aCase := range source.Cases {
 			rows = append(rows, caseRows(aCase)...)
@@ -200,7 +279,15 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 
 type workbookSheet struct {
 	Name string
-	Rows [][]string
+	Rows [][]SpreadsheetCell
+}
+
+func cellTexts(cells []SpreadsheetCell) []string {
+	values := make([]string, len(cells))
+	for i, cell := range cells {
+		values[i] = cell.Text
+	}
+	return values
 }
 
 func writeWorkbook(w io.Writer, sheets []workbookSheet) error {
@@ -304,7 +391,7 @@ func buildWorkbookRelationships(sheets []workbookSheet) string {
 	return builder.String()
 }
 
-func buildWorksheetXML(rows [][]string) string {
+func buildWorksheetXML(rows [][]SpreadsheetCell) string {
 	var builder strings.Builder
 	builder.WriteString(xml.Header)
 	builder.WriteString(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`)
@@ -329,14 +416,14 @@ func buildWorksheetXML(rows [][]string) string {
 		rowIndex := i + 1
 		rowHeight := spreadsheetRowHeight(rowIndex, row)
 		builder.WriteString(fmt.Sprintf(`<row r="%d" ht="%.1f" customHeight="1">`, rowIndex, rowHeight))
-		for j, value := range row {
+		for j, cell := range row {
 			cellRef := fmt.Sprintf("%s%d", columnName(j+1), rowIndex)
 			styleIndex := spreadsheetStyleIndex(rowIndex, j+1)
-			if value == "" {
+			if cell.Text == "" {
 				builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d"/>`, cellRef, styleIndex))
 				continue
 			}
-			builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d" t="inlineStr"><is><t>%s</t></is></c>`, cellRef, styleIndex, escapeCellText(value)))
+			builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d" t="inlineStr">%s</c>`, cellRef, styleIndex, buildInlineStringXML(cell)))
 		}
 		builder.WriteString(`</row>`)
 	}
@@ -350,7 +437,39 @@ func buildWorksheetXML(rows [][]string) string {
 
 var spreadsheetColumnWidths = []float64{18, 18, 24, 42, 42, 14, 13, 16, 32}
 
-func maxColumnCount(rows [][]string) int {
+func buildInlineStringXML(cell SpreadsheetCell) string {
+	if len(cell.InlineCode) == 0 {
+		return `<is><t xml:space="preserve">` + escapeCellText(cell.Text) + `</t></is>`
+	}
+
+	var builder strings.Builder
+	builder.WriteString(`<is>`)
+	position := 0
+	for _, codeRange := range cell.InlineCode {
+		if codeRange.Start > position {
+			writeRichTextRun(&builder, cell.Text[position:codeRange.Start], false)
+		}
+		writeRichTextRun(&builder, cell.Text[codeRange.Start:codeRange.End], true)
+		position = codeRange.End
+	}
+	if position < len(cell.Text) {
+		writeRichTextRun(&builder, cell.Text[position:], false)
+	}
+	builder.WriteString(`</is>`)
+	return builder.String()
+}
+
+func writeRichTextRun(builder *strings.Builder, value string, code bool) {
+	builder.WriteString(`<r>`)
+	if code {
+		builder.WriteString(`<rPr><rFont val="Consolas"/><sz val="10"/></rPr>`)
+	}
+	builder.WriteString(`<t xml:space="preserve">`)
+	builder.WriteString(escapeCellText(value))
+	builder.WriteString(`</t></r>`)
+}
+
+func maxColumnCount(rows [][]SpreadsheetCell) int {
 	count := 0
 	for _, row := range rows {
 		if len(row) > count {
@@ -373,20 +492,20 @@ func spreadsheetStyleIndex(row, column int) int {
 	return 3
 }
 
-func spreadsheetRowHeight(rowIndex int, row []string) float64 {
+func spreadsheetRowHeight(rowIndex int, row []SpreadsheetCell) float64 {
 	if rowIndex == 1 {
 		return 30
 	}
 
 	maxLines := 1
-	for index, value := range row {
+	for index, cell := range row {
 		width := 18
 		if index < len(spreadsheetColumnWidths) {
 			width = int(spreadsheetColumnWidths[index])
 		}
 
 		lines := 0
-		for _, segment := range strings.Split(value, "\n") {
+		for _, segment := range strings.Split(cell.Text, "\n") {
 			lineCount := (utf8.RuneCountInString(segment) + width - 1) / width
 			if lineCount < 1 {
 				lineCount = 1

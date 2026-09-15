@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/9renpoto/casemd/internal/app"
 )
@@ -109,8 +110,11 @@ func buildSpreadsheetPayload(spreadsheet app.GoogleSpreadsheet) (*spreadsheetPay
 			cells := make([]cellData, 0, len(row))
 			for _, value := range row {
 				cell := cellData{}
-				if value != "" {
-					cell.UserEnteredValue = &extendedValue{StringValue: value}
+				if value.Text != "" {
+					cell.UserEnteredValue = &extendedValue{StringValue: value.Text}
+				}
+				if len(value.InlineCode) > 0 {
+					cell.TextFormatRuns = makeTextFormatRuns(value)
 				}
 				cells = append(cells, cell)
 			}
@@ -153,9 +157,42 @@ type rowData struct {
 }
 
 type cellData struct {
-	UserEnteredValue *extendedValue `json:"userEnteredValue,omitempty"`
+	UserEnteredValue *extendedValue  `json:"userEnteredValue,omitempty"`
+	TextFormatRuns   []textFormatRun `json:"textFormatRuns,omitempty"`
 }
 
 type extendedValue struct {
 	StringValue string `json:"stringValue,omitempty"`
+}
+
+type textFormatRun struct {
+	StartIndex int        `json:"startIndex"`
+	Format     textFormat `json:"format"`
+}
+
+type textFormat struct {
+	FontFamily string `json:"fontFamily,omitempty"`
+}
+
+func makeTextFormatRuns(cell app.SpreadsheetCell) []textFormatRun {
+	runs := make([]textFormatRun, 0, len(cell.InlineCode)*2+1)
+	position := 0
+	for _, codeRange := range cell.InlineCode {
+		if codeRange.Start > position {
+			runs = append(runs, textFormatRun{StartIndex: utf16Index(cell.Text[:position]), Format: textFormat{}})
+		}
+		runs = append(runs, textFormatRun{
+			StartIndex: utf16Index(cell.Text[:codeRange.Start]),
+			Format:     textFormat{FontFamily: "Roboto Mono"},
+		})
+		position = codeRange.End
+	}
+	if position < len(cell.Text) {
+		runs = append(runs, textFormatRun{StartIndex: utf16Index(cell.Text[:position]), Format: textFormat{}})
+	}
+	return runs
+}
+
+func utf16Index(value string) int {
+	return len(utf16.Encode([]rune(value)))
 }

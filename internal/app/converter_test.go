@@ -86,6 +86,46 @@ func TestMarkdownToCSV_Convert(t *testing.T) {
 	}
 }
 
+func TestParseInlineCode(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		text   string
+		ranges []InlineCodeRange
+	}{
+		{
+			name:   "mixed Japanese and ASCII",
+			input:  "`山田 Taro 01` を確認する",
+			text:   "山田 Taro 01 を確認する",
+			ranges: []InlineCodeRange{{Start: 0, End: len("山田 Taro 01")}},
+		},
+		{
+			name:   "multiple delimiters",
+			input:  "``a ` literal`` と `code`",
+			text:   "a ` literal と code",
+			ranges: []InlineCodeRange{{Start: 0, End: len("a ` literal")}, {Start: len("a ` literal と "), End: len("a ` literal と code")}},
+		},
+		{
+			name:   "unmatched delimiter remains literal",
+			input:  "`unfinished",
+			text:   "`unfinished",
+			ranges: []InlineCodeRange{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell := parseInlineCode(tt.input)
+			if cell.Text != tt.text {
+				t.Fatalf("text = %q, want %q", cell.Text, tt.text)
+			}
+			if !reflect.DeepEqual(cell.InlineCode, tt.ranges) {
+				t.Fatalf("ranges = %#v, want %#v", cell.InlineCode, tt.ranges)
+			}
+		})
+	}
+}
+
 func TestMarkdownToSpreadsheet_Convert(t *testing.T) {
 	mockCases := []domain.Case{
 		{
@@ -282,14 +322,14 @@ func TestMarkdownToSpreadsheet_PreservesEvalSpecMakerMixedWidthContent(t *testin
 	}
 
 	wantCheckpoints := []string{
-		"* [ ] 「変更を保存しました」と `Done` が表示される。",
-		"* [ ] 全角文字 `山田`、半角英数字 `Taro 01`、記号 `-_/` が欠落せず表示される。",
-		"* [ ] `税込￥1,280` と `2026/09/15` が改行や列幅を壊さない。",
+		"* [ ] 「変更を保存しました」と Done が表示される。",
+		"* [ ] 全角文字 山田、半角英数字 Taro 01、記号 -_/ が欠落せず表示される。",
+		"* [ ] 税込￥1,280 と 2026/09/15 が改行や列幅を壊さない。",
 	}
 	for index, wantCheckpoint := range wantCheckpoints {
 		dataRow := worksheet.SheetData.Rows[index+1]
 		steps := dataRow.Cells[3].Value()
-		for _, want := range []string{"`user@example.com`", "`山田 Taro 01`", "`> # カテゴリ`", "VeryLongProductCode-ABC123456789"} {
+		for _, want := range []string{"user@example.com", "山田 Taro 01", "> # カテゴリ", "VeryLongProductCode-ABC123456789"} {
 			if !strings.Contains(steps, want) {
 				t.Errorf("row %d validation steps = %q, want %q", index+2, steps, want)
 			}
@@ -304,7 +344,19 @@ func TestMarkdownToSpreadsheet_PreservesEvalSpecMakerMixedWidthContent(t *testin
 		if dataRow.Height <= 36 {
 			t.Errorf("row %d mixed-width row height = %.1f, want greater than 36", index+2, dataRow.Height)
 		}
+		if !hasCodeRun(dataRow.Cells[3]) || !hasCodeRun(dataRow.Cells[4]) {
+			t.Errorf("row %d does not contain monospace inline-code runs", index+2)
+		}
 	}
+}
+
+func hasCodeRun(cell sheetCell) bool {
+	for _, run := range cell.InlineStr.Runs {
+		if run.Properties.Font.Name == "Consolas" {
+			return true
+		}
+	}
+	return false
 }
 
 func readSheetRows(t *testing.T, data []byte, sheetIndex int) [][]string {
@@ -442,8 +494,12 @@ func TestMarkdownToGoogleSpreadsheet_Create(t *testing.T) {
 		append([]string(nil), spreadsheetHeaders...),
 		{"", "", "One", "", "", "", "", "", ""},
 	}
-	if !reflect.DeepEqual(sheet.Rows, expectedRows) {
-		t.Fatalf("unexpected rows: %#v", sheet.Rows)
+	actualRows := make([][]string, len(sheet.Rows))
+	for i, row := range sheet.Rows {
+		actualRows[i] = cellTexts(row)
+	}
+	if !reflect.DeepEqual(actualRows, expectedRows) {
+		t.Fatalf("unexpected rows: %#v", actualRows)
 	}
 }
 
@@ -590,11 +646,32 @@ type sheetCell struct {
 }
 
 type inlineString struct {
-	Text string `xml:"t"`
+	Text string        `xml:"t"`
+	Runs []richTextRun `xml:"r"`
+}
+
+type richTextRun struct {
+	Properties richTextProperties `xml:"rPr"`
+	Text       string             `xml:"t"`
+}
+
+type richTextProperties struct {
+	Font richTextFont `xml:"rFont"`
+}
+
+type richTextFont struct {
+	Name string `xml:"val,attr"`
 }
 
 func (c sheetCell) Value() string {
-	return c.InlineStr.Text
+	if c.InlineStr.Text != "" {
+		return c.InlineStr.Text
+	}
+	var builder strings.Builder
+	for _, run := range c.InlineStr.Runs {
+		builder.WriteString(run.Text)
+	}
+	return builder.String()
 }
 
 type styleSheet struct {
