@@ -260,7 +260,9 @@ casemd is inspired by [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eva
 | XLSX layout | Human-focused casemd layout | eval-spec-maker layout |
 
 Use repeated `--input` options when a casemd workbook needs multiple worksheets.
-Read [`ADR-0002-define-eval-spec-maker-compatibility-boundary.md`](ADR-0002-define-eval-spec-maker-compatibility-boundary.md) before migrating existing eval-spec-maker specifications.
+Read [`ADR-0002`](docs/adr/0002-define-eval-spec-maker-compatibility-boundary.md) before migrating existing eval-spec-maker specifications.
+
+Project design decisions and terminology are documented in [`docs/`](docs/), with ADRs under [`docs/adr/`](docs/adr/).
 
 ## API
 
