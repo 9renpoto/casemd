@@ -1,5 +1,14 @@
 version: 2
 updates:
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "Type: Dependencies"
+    cooldown:
+      default-days: 7
+
   - package-ecosystem: devcontainers
     directory: "/"
     schedule:

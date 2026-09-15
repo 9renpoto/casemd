@@ -1,0 +1,16 @@
+.git
+.github
+.devcontainer
+.agents
+.codex
+build
+coverage.out
+Dockerfile
+*.log
+*.tmp
+*_test.go
+ADR-*.md
+CHANGELOG.md
+SECURITY.md
+follow-up.md
+README.md
