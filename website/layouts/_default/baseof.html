@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+    <link rel="stylesheet" href="{{ "css/site.css" | relURL }}">
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="{{ "/" | relURL }}">casemd</a>
+      <nav aria-label="Documentation">
+        <a href="{{ "/guides/" | relURL }}">Guides</a>
+        <a href="{{ "/adr/" | relURL }}">ADRs</a>
+        <a href="{{ "/glossary/" | relURL }}">Glossary</a>
+        <a href="https://github.com/9renpoto/casemd">GitHub</a>
+      </nav>
+    </header>
+    <main>
+      {{ block "main" . }}{{ end }}
+    </main>
+    <footer>
+      {{ with .File }}
+        <a href="https://github.com/9renpoto/casemd/blob/main/{{ .Path }}">Edit this page on GitHub</a>
+      {{ else }}
+        <a href="https://github.com/9renpoto/casemd">View casemd on GitHub</a>
+      {{ end }}
+    </footer>
+  </body>
+</html>
