@@ -40,6 +40,8 @@ The README is the project entry point.
 Detailed guides, design decisions, and shared terminology live in [`docs/`](docs/).
 The documentation site is generated from that directory.
 
+For the v1 validation, XLSX-generation, visual-verification, and execution-record workflow, read the [scenario workflow guide](docs/guides/v1-scenario-workflow.md).
+
 <details>
 <summary>日本語</summary>
 
@@ -48,6 +50,8 @@ The documentation site is generated from that directory.
 README はプロジェクトの入口です。
 詳細なガイド、設計判断、共通用語は [`docs/`](docs/) に置きます。
 ドキュメントサイトはこのディレクトリから生成します。
+
+v1 の検証、XLSX 生成、表示確認、実施記録のワークフローは、[シナリオワークフローガイド](docs/guides/v1-scenario-workflow.md) を参照してください。
 
 </details>
 
