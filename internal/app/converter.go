@@ -44,13 +44,26 @@ var spreadsheetHeaders = []string{
 	"Result", "Test Date", "Tester", "Notes",
 }
 
-func caseRow(aCase domain.Case) []string {
+func caseRows(aCase domain.Case) [][]string {
+	checkpoints := aCase.Checkpoints
+	if len(checkpoints) == 0 {
+		checkpoints = []string{""}
+	}
+
+	rows := make([][]string, 0, len(checkpoints))
+	for _, checkpoint := range checkpoints {
+		rows = append(rows, caseRow(aCase, checkpoint))
+	}
+	return rows
+}
+
+func caseRow(aCase domain.Case, checkpoint string) []string {
 	return []string{
 		aCase.MajorItem,
 		aCase.MediumItem,
 		aCase.MinorItem,
 		strings.Join(aCase.ValidationSteps, "\n"),
-		strings.Join(aCase.Checkpoints, "\n"),
+		checkpoint,
 		"", // Result
 		"", // Test Date
 		"", // Tester
@@ -82,9 +95,11 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 
 	for _, source := range parsedSources {
 		for _, aCase := range source.Cases {
-			if err := writer.Write(caseRow(aCase)); err != nil {
-				writer.Flush()
-				return fmt.Errorf("write csv row: %w", err)
+			for _, row := range caseRows(aCase) {
+				if err := writer.Write(row); err != nil {
+					writer.Flush()
+					return fmt.Errorf("write csv row: %w", err)
+				}
 			}
 		}
 	}
@@ -126,7 +141,7 @@ func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) erro
 		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
 
 		for _, aCase := range source.Cases {
-			rows = append(rows, caseRow(aCase))
+			rows = append(rows, caseRows(aCase)...)
 		}
 
 		sheets = append(sheets, workbookSheet{Name: sheetName, Rows: rows})
@@ -168,7 +183,7 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
 
 		for _, aCase := range source.Cases {
-			rows = append(rows, caseRow(aCase))
+			rows = append(rows, caseRows(aCase)...)
 		}
 
 		sheets = append(sheets, GoogleSpreadsheetSheet{Title: sheetName, Rows: rows})
