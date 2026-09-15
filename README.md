@@ -3,18 +3,24 @@
 [![CI](https://github.com/9renpoto/casemd/actions/workflows/ci.yml/badge.svg)](https://github.com/9renpoto/casemd/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/9renpoto/casemd/graph/badge.svg?token=D63wbdaCah)](https://codecov.io/gh/9renpoto/casemd)
 
-CLI tool for converting structured Markdown inspection checklists into CSV files, multi-sheet spreadsheets, and Google Spreadsheets.
+Convert structured Markdown inspection checklists into CSV files, Excel workbooks, and Google Spreadsheets.
 
-## Requirements
+The Markdown files are the source of truth for inspection cases.
+Each output is a generated artifact that can be shared with a testing or operations team.
 
-- Go 1.26+
-- typos-cli
+<details>
+<summary>日本語</summary>
 
-Install Go using the toolchain manager or package distribution appropriate for your development environment.
-The provided devcontainer is also available with the supporting tools preinstalled.
-The workflow draws inspiration from [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), which popularized the inspection-sheet markdown format this tool consumes.
+構造化した Markdown の点検チェックリストを、CSV ファイル、Excel ブック、Google スプレッドシートに変換します。
 
-## Installation
+点検ケースの正本は Markdown ファイルです。
+各出力は生成物として、テストチームや運用チームと共有できます。
+
+</details>
+
+## Install
+
+### Homebrew
 
 Install the latest released version with Homebrew:
 
@@ -53,41 +59,142 @@ brew install 9renpoto/tap/casemd
 casemd --version
 ```
 
-## Quick Start
+### From source
 
-The repository ships with `notes.md` and `follow-up.md`, which replicate the extended example below so you can exercise the CLI immediately.
+### Requirements
+
+- Go 1.26 or later.
+- An OAuth access token with the `https://www.googleapis.com/auth/spreadsheets` scope when creating Google Spreadsheets.
+
+Install the CLI with Go:
 
 ```sh
-# Run the CLI help
-go run ./cmd/casemd --help
-
-# Convert Markdown inspection sheets into both CSV and XLSX outputs
-go run ./cmd/casemd --input notes.md --csv-output build/notes.csv --spreadsheet-output build/notes.xlsx
-
-# Create a Google Spreadsheet (requires GOOGLE_SHEETS_ACCESS_TOKEN with an OAuth token)
-GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token go run ./cmd/casemd --input notes.md --google-spreadsheet-title "Inspection Sheet Export"
-
-# Generate only one of the output formats
-go run ./cmd/casemd --input notes.md --csv-output build/notes.csv
-go run ./cmd/casemd --input notes.md --input follow-up.md --spreadsheet-output build/all-notes.xlsx
+go install github.com/9renpoto/casemd/cmd/casemd@latest
 ```
 
-The generated spreadsheet contains predefined columns (Major Item, Medium Item, Minor Item, Validation Steps, Checkpoints, Result, Test Date, Tester, Notes) populated from the Markdown hierarchy and list content.
-Each Markdown file becomes its own sheet inside the workbook.
-Passing `--google-spreadsheet-title` uploads the same structure to Google Sheets using the bearer token exposed through `GOOGLE_SHEETS_ACCESS_TOKEN`.
+You can also run it directly from a checkout with `go run ./cmd/casemd`.
 
-## Input Format
+<details>
+<summary>日本語</summary>
 
-Markdown files should express each inspection case with nested headings for the hierarchy and lists for the execution details:
+### 必要条件
 
-- `#` Heading — Optional document title (`Category` in the legacy format).
-- `##` Heading — Major Item; starts a new block of related checks.
-- `###` Heading — Medium Item inside the current major item.
-- `####` Heading — Minor Item that becomes a single spreadsheet row.
-- Numbered list (`1.`) — Ordered validation steps captured verbatim in the `Validation Steps` column (line breaks preserved).
-- Task list (`* [ ]`) — Checkpoints collected in the `Checkpoints` column (line breaks preserved, `[ ]` or `[x]` kept).
+- Go 1.26 以降。
+- Google スプレッドシートを作成する場合は、`https://www.googleapis.com/auth/spreadsheets` スコープを持つ OAuth アクセストークン。
 
-Extended example:
+Go で CLI をインストールします。
+
+```sh
+go install github.com/9renpoto/casemd/cmd/casemd@latest
+```
+
+チェックアウトしたリポジトリから `go run ./cmd/casemd` で直接実行することもできます。
+
+</details>
+
+## Usage
+
+Show the available flags:
+
+```sh
+casemd --help
+```
+
+Convert one Markdown file to CSV and XLSX:
+
+```sh
+casemd \\
+  --input notes.md \\
+  --csv-output build/notes.csv \\
+  --spreadsheet-output build/notes.xlsx
+```
+
+Pass `--input` more than once to combine files into one workbook.
+Each input file becomes a separate worksheet in the workbook.
+
+```sh
+casemd \\
+  --input notes.md \\
+  --input follow-up.md \\
+  --spreadsheet-output build/all-notes.xlsx
+```
+
+Create a Google Spreadsheet by providing an access token:
+
+```sh
+GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \\
+  casemd \\
+  --input notes.md \\
+  --google-spreadsheet-title "Inspection Sheet Export"
+```
+
+Start the local preview web UI on port 3000:
+
+```sh
+casemd serve
+```
+
+Set `CASEMD_WEB_ADDR` or pass an address as the second argument to change the bind address.
+The web UI exposes `GET /healthz` and `POST /api/preview` in addition to the browser interface.
+
+<details>
+<summary>日本語</summary>
+
+利用できるフラグを表示します。
+
+```sh
+casemd --help
+```
+
+Markdown ファイルを CSV と XLSX に変換します。
+
+```sh
+casemd \\
+  --input notes.md \\
+  --csv-output build/notes.csv \\
+  --spreadsheet-output build/notes.xlsx
+```
+
+`--input` を複数回指定すると、ファイルを 1 つのブックにまとめられます。
+入力ファイルごとにブック内のワークシートが 1 枚作成されます。
+
+アクセストークンを指定して Google スプレッドシートを作成します。
+
+```sh
+GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \\
+  casemd \\
+  --input notes.md \\
+  --google-spreadsheet-title "Inspection Sheet Export"
+```
+
+ポート 3000 でローカルのプレビュー Web UI を起動します。
+
+```sh
+casemd serve
+```
+
+バインドアドレスを変更するには `CASEMD_WEB_ADDR` を設定するか、第 2 引数にアドレスを指定します。
+ブラウザー画面に加えて、`GET /healthz` と `POST /api/preview` を提供します。
+
+</details>
+
+## Input format
+
+Use headings to define the inspection hierarchy and lists to define execution details:
+
+| Markdown element | Meaning | Output column |
+| --- | --- | --- |
+| `#` heading | Optional document title | — |
+| `##` heading | Major item | Major Item |
+| `###` heading | Medium item | Medium Item |
+| `####` heading | Individual inspection case | Minor Item |
+| Ordered list such as `1.` | Validation steps | Validation Steps |
+| Task list such as `* [ ]` | Checkpoints | Checkpoints |
+
+The generated table also contains blank `Result`, `Test Date`, `Tester`, and `Notes` columns for execution records.
+Validation steps and checkpoints retain their order and line breaks.
+
+Example:
 
 ```markdown
 # Inspection Sheet
@@ -100,82 +207,125 @@ Extended example:
 2. Confirm default configurations
 * [ ] Packages installed successfully
 * [ ] Defaults match specification
-
-#### Environment variables
-
-1. Validate required environment variables are set
-* [ ] Variables align with deployment checklist
-
-### Configuration
-#### CLI defaults
-
-1. Inspect generated spreadsheet path
-* [ ] Output file lands in build/
-* [ ] Delimiter is comma
-
-## Execution
-### Workflow
-#### CLI run
-
-1. Run casemd with sample.md
-* [ ] Exit code is 0
-* [ ] Spreadsheet file exists
-
-#### Post-run cleanup
-
-1. Remove temporary files from build/
-* [ ] No leftover artifacts
-
-### Validation
-#### Error handling
-
-1. Run casemd without --input
-* [ ] CLI prints actionable error
-* [ ] Exit code is 1
 ```
 
-### Input → Output Mapping
+The repository includes [`notes.md`](notes.md) and [`follow-up.md`](follow-up.md) as working examples.
 
-| Markdown Element | Spreadsheet Column | Notes |
+<details>
+<summary>日本語</summary>
+
+見出しで点検階層を定義し、リストで実行内容を定義します。
+
+| Markdown 要素 | 意味 | 出力列 |
 | --- | --- | --- |
-| `##` Major Item heading | Major Item | Repeated for each `####` descendant; blank rows in the preview mimic merged cells. |
-| `###` Medium Item heading | Medium Item | Repeated for each minor item inside the medium item; duplicate cells appear blank in the preview to mimic merged headings. |
-| `####` Minor Item heading | Minor Item | Identifies the granular check represented by the row. |
-| Ordered list under the minor item | Validation Steps | Joined with newlines, preserving list order. |
-| Task list under the minor item | Checkpoints | Joined with newlines, retaining `[ ]` / `[x]` markers. |
-| (No Markdown source) | Result / Test Date / Tester / Notes | Columns left blank for test execution; teams fill them in after loading the spreadsheet. |
+| `#` 見出し | 任意のドキュメントタイトル | — |
+| `##` 見出し | 大項目 | Major Item |
+| `###` 見出し | 中項目 | Medium Item |
+| `####` 見出し | 個別の点検ケース | Minor Item |
+| `1.` などの番号付きリスト | 検証手順 | Validation Steps |
+| `* [ ]` などのタスクリスト | チェックポイント | Checkpoints |
 
-## Output Preview
+生成される表には、実行記録用に `Result`、`Test Date`、`Tester`、`Notes` の空列も含まれます。
+検証手順とチェックポイントは順序と改行を保持します。
 
-Using the Markdown example above, the CLI produces a spreadsheet that spreadsheet tools render as an inspection table. When a major or medium item covers multiple checks, the workbook contains the repeated heading value; the preview below intentionally leaves duplicate cells blank to hint at the grouping you see after opening the file in spreadsheet software.
+リポジトリには実行例として [`notes.md`](notes.md) と [`follow-up.md`](follow-up.md) が含まれています。
 
-| Major Item | Medium Item | Minor Item | Validation Steps | Checkpoints | Result | Test Date | Tester | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Setup | Environment | Dependencies | Install required packages<br>Confirm default configurations | Packages installed successfully<br>Defaults match specification |  |  |  |  |
-|  |  | Environment variables | Validate required environment variables are set | Variables align with deployment checklist |  |  |  |  |
-|  | Configuration | CLI defaults | Inspect generated spreadsheet path | Output file lands in build/<br>Delimiter is comma |  |  |  |  |
-| Execution | Workflow | CLI run | Run casemd with sample.md | Exit code is 0<br>Spreadsheet file exists |  |  |  |  |
-|  |  | Post-run cleanup | Remove temporary files from build/ | No leftover artifacts |  |  |  |  |
-|  | Validation | Error handling | Run casemd without --input | CLI prints actionable error<br>Exit code is 1 |  |  |  |  |
+</details>
 
-## Development Workflow
+## API
+
+The preview server provides the following HTTP endpoints when `casemd serve` is running:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/` | Open the Markdown-to-CSV preview UI. |
+| `GET` | `/healthz` | Return `{"status":"ok"}` when the server is ready. |
+| `POST` | `/api/preview` | Convert a JSON body containing `name` and `markdown` into CSV. |
+
+Example request:
 
 ```sh
-# Install git hooks
-lefthook install
-
-# Execute the local checks before opening a PR
-lefthook run pre-commit
-
-# Build and test
-go build ./cmd/casemd
-go test ./...
-
-# Start the web UI
-go run ./cmd/casemd serve
-
-# In another terminal, verify the health endpoint
-curl --fail http://localhost:3000/healthz
+curl --fail \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"notes.md","markdown":"## Setup\\n### Environment\\n#### Dependencies"}' \\
+  http://localhost:3000/api/preview
 ```
 
-Keep documentation up to date as the clean-architecture layers evolve. Application orchestration lives in `internal/app`, interface adapters reside under `internal/interfaces`, and domain parsing logic sits in `internal/core`.
+## Development
+
+Install the Git hooks and run the repository checks:
+
+```sh
+lefthook install
+lefthook run pre-commit
+```
+
+Run focused checks during development:
+
+```sh
+go build ./cmd/casemd
+go test ./... -cover
+go vet ./...
+typos
+```
+
+The project follows clean-architecture boundaries.
+Application orchestration lives in `internal/app`, domain parsing lives in `internal/core`, and interface adapters live in `internal/interfaces`.
+
+## Contributing
+
+Bug reports and pull requests are welcome.
+Please keep changes focused, add or update tests for behavior changes, run `lefthook run pre-commit`, and describe architectural impact in the pull request.
+
+## Security
+
+Please report security issues according to [`SECURITY.md`](SECURITY.md).
+
+## Acknowledgments
+
+The Markdown inspection-sheet format is inspired by [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker).
+
+## License
+
+[MIT](LICENSE) © 2026 9renpoto
+
+<details>
+<summary>日本語</summary>
+
+## API
+
+`casemd serve` の起動中は、次の HTTP エンドポイントを利用できます。
+
+| メソッド | パス | 説明 |
+| --- | --- | --- |
+| `GET` | `/` | Markdown から CSV へのプレビュー UI を開きます。 |
+| `GET` | `/healthz` | サーバーが準備できている場合に `{"status":"ok"}` を返します。 |
+| `POST` | `/api/preview` | `name` と `markdown` を含む JSON を CSV に変換します。 |
+
+## 開発
+
+Git フックをインストールして、リポジトリのチェックを実行します。
+
+```sh
+lefthook install
+lefthook run pre-commit
+```
+
+## コントリビューション
+
+バグ報告とプルリクエストを歓迎します。
+変更は小さく保ち、動作を変更する場合はテストを追加または更新し、`lefthook run pre-commit` を実行してください。
+
+## セキュリティ
+
+セキュリティ上の問題は [`SECURITY.md`](SECURITY.md) に従って報告してください。
+
+## 謝辞
+
+Markdown の点検シート形式は [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker) に着想を得ています。
+
+## ライセンス
+
+[MIT](LICENSE) © 2026 9renpoto
+
+</details>
