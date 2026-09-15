@@ -34,6 +34,23 @@ Verify the installed version:
 casemd --version
 ```
 
+## Documentation
+
+The README is the project entry point.
+Detailed guides, design decisions, and shared terminology live in [`docs/`](docs/).
+The documentation site is generated from that directory.
+
+<details>
+<summary>日本語</summary>
+
+## ドキュメント
+
+README はプロジェクトの入口です。
+詳細なガイド、設計判断、共通用語は [`docs/`](docs/) に置きます。
+ドキュメントサイトはこのディレクトリから生成します。
+
+</details>
+
 ## Web UI scenario tests
 
 The manual scenario checklist for the Web UI is maintained in [`scenarios/web-ui.md`](scenarios/web-ui.md) in Japanese.
@@ -251,16 +268,7 @@ The repository includes [`notes.md`](notes.md) and [`follow-up.md`](follow-up.md
 
 casemd is inspired by [`ryuta46/eval-spec-maker`](https://github.com/ryuta46/eval-spec-maker), but it is not a drop-in compatible replacement.
 
-| Behavior | casemd v1 | eval-spec-maker |
-| --- | --- | --- |
-| `#` heading | Optional document title, at most once | Worksheet category, repeatable |
-| Worksheet unit | Each input file | Each `#` heading |
-| Column headers | casemd execution-record contract | Fixed Japanese labels |
-| Markdown list content | Preserve text after the list marker | Interpret Markdown tokens in the list content |
-| XLSX layout | Human-focused casemd layout | eval-spec-maker layout |
-
-Use repeated `--input` options when a casemd workbook needs multiple worksheets.
-Read [`ADR-0002`](docs/adr/0002-define-eval-spec-maker-compatibility-boundary.md) before migrating existing eval-spec-maker specifications.
+Read [`ADR-0002`](docs/adr/0002-define-eval-spec-maker-compatibility-boundary.md) before migrating existing eval-spec-maker specifications or depending on v1 compatibility details.
 
 Project design decisions and terminology are documented in [`docs/`](docs/), with ADRs under [`docs/adr/`](docs/adr/).
 
