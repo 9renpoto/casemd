@@ -15,11 +15,6 @@ import (
 	"github.com/9renpoto/casemd/internal/core/domain"
 )
 
-// CaseParser defines the behavior required to parse test cases from Markdown.
-type CaseParser interface {
-	Parse(r io.Reader) ([]domain.Case, error)
-}
-
 // Source represents a Markdown document and the metadata needed to build a sheet.
 type Source struct {
 	Name   string
@@ -40,7 +35,20 @@ type GoogleSpreadsheet struct {
 // GoogleSpreadsheetSheet describes a single Google Sheets worksheet and its data.
 type GoogleSpreadsheetSheet struct {
 	Title string
-	Rows  [][]string
+	Rows  [][]SpreadsheetCell
+}
+
+// SpreadsheetCell is text ready for a spreadsheet cell.
+// InlineCode ranges use UTF-8 byte offsets into Text.
+type SpreadsheetCell struct {
+	Text       string
+	InlineCode []InlineCodeRange
+}
+
+// InlineCodeRange marks a code-formatted range in a SpreadsheetCell.
+type InlineCodeRange struct {
+	Start int
+	End   int
 }
 
 var spreadsheetHeaders = []string{
@@ -49,13 +57,92 @@ var spreadsheetHeaders = []string{
 	"Result", "Test Date", "Tester", "Notes",
 }
 
-func caseRow(aCase domain.Case) []string {
+func caseRows(aCase domain.Case) [][]SpreadsheetCell {
+	checkpoints := aCase.Checkpoints
+	if len(checkpoints) == 0 {
+		checkpoints = []string{""}
+	}
+
+	rows := make([][]SpreadsheetCell, 0, len(checkpoints))
+	for _, checkpoint := range checkpoints {
+		rows = append(rows, spreadsheetCells(caseRow(aCase, checkpoint)))
+	}
+	return rows
+}
+
+func spreadsheetCells(values []string) []SpreadsheetCell {
+	cells := make([]SpreadsheetCell, len(values))
+	for i, value := range values {
+		cells[i] = parseInlineCode(value)
+	}
+	return cells
+}
+
+// parseInlineCode renders matched Markdown backtick spans as text with code ranges.
+// Unmatched delimiters remain literal so authors never lose input while editing a scenario.
+func parseInlineCode(value string) SpreadsheetCell {
+	var text strings.Builder
+	ranges := make([]InlineCodeRange, 0)
+
+	for index := 0; index < len(value); {
+		if value[index] == '\\' && index+1 < len(value) && value[index+1] == '`' {
+			text.WriteByte('`')
+			index += 2
+			continue
+		}
+		if value[index] != '`' {
+			text.WriteByte(value[index])
+			index++
+			continue
+		}
+
+		delimiterLength := 1
+		for index+delimiterLength < len(value) && value[index+delimiterLength] == '`' {
+			delimiterLength++
+		}
+		closing := findClosingBacktickRun(value, index+delimiterLength, delimiterLength)
+		if closing < 0 {
+			text.WriteString(value[index : index+delimiterLength])
+			index += delimiterLength
+			continue
+		}
+
+		start := text.Len()
+		text.WriteString(value[index+delimiterLength : closing])
+		end := text.Len()
+		if start != end {
+			ranges = append(ranges, InlineCodeRange{Start: start, End: end})
+		}
+		index = closing + delimiterLength
+	}
+
+	return SpreadsheetCell{Text: text.String(), InlineCode: ranges}
+}
+
+func findClosingBacktickRun(value string, from, delimiterLength int) int {
+	for index := from; index < len(value); index++ {
+		if value[index] != '`' {
+			continue
+		}
+		runLength := 1
+		for index+runLength < len(value) && value[index+runLength] == '`' {
+			runLength++
+		}
+		if runLength == delimiterLength {
+			return index
+		}
+		index += runLength - 1
+	}
+	return -1
+}
+
+func caseRow(aCase domain.Case, checkpoint string) []string {
 	return []string{
 		aCase.MajorItem,
 		aCase.MediumItem,
 		aCase.MinorItem,
 		strings.Join(aCase.ValidationSteps, "\n"),
-		strings.Join(aCase.Checkpoints, "\n"),
+		checkpoint,
 		"", // Result
 		"", // Test Date
 		"", // Tester
@@ -65,18 +152,19 @@ func caseRow(aCase domain.Case) []string {
 
 // MarkdownToCSV orchestrates the conversion of Markdown test cases into CSV rows.
 type MarkdownToCSV struct {
-	parser CaseParser
+	parser MarkdownParser
 }
 
 // NewMarkdownToCSV wires the converter with the provided parser implementation.
-func NewMarkdownToCSV(parser CaseParser) *MarkdownToCSV {
+func NewMarkdownToCSV(parser MarkdownParser) *MarkdownToCSV {
 	return &MarkdownToCSV{parser: parser}
 }
 
 // Convert reads Markdown sources and writes a CSV document containing every parsed case.
 func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
-	if len(sources) == 0 {
-		return fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return err
 	}
 
 	writer := csv.NewWriter(output)
@@ -84,17 +172,13 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 		return fmt.Errorf("write csv header: %w", err)
 	}
 
-	for _, source := range sources {
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			writer.Flush()
-			return fmt.Errorf("parse %s: %w", source.Name, err)
-		}
-
-		for _, aCase := range cases {
-			if err := writer.Write(caseRow(aCase)); err != nil {
-				writer.Flush()
-				return fmt.Errorf("write csv row: %w", err)
+	for _, source := range parsedSources {
+		for _, aCase := range source.Cases {
+			for _, row := range caseRows(aCase) {
+				if err := writer.Write(cellTexts(row)); err != nil {
+					writer.Flush()
+					return fmt.Errorf("write csv row: %w", err)
+				}
 			}
 		}
 	}
@@ -109,38 +193,34 @@ func (c *MarkdownToCSV) Convert(sources []Source, output io.Writer) error {
 
 // MarkdownToSpreadsheet orchestrates the conversion of Markdown test cases into spreadsheet sheets.
 type MarkdownToSpreadsheet struct {
-	parser CaseParser
+	parser MarkdownParser
 }
 
 // NewMarkdownToSpreadsheet wires the converter with the provided parser implementation.
-func NewMarkdownToSpreadsheet(parser CaseParser) *MarkdownToSpreadsheet {
+func NewMarkdownToSpreadsheet(parser MarkdownParser) *MarkdownToSpreadsheet {
 	return &MarkdownToSpreadsheet{parser: parser}
 }
 
 // Convert reads Markdown data and writes a spreadsheet workbook with one sheet per Markdown file.
 func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) error {
-	if len(sources) == 0 {
-		return fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return err
 	}
 
-	sheets := make([]workbookSheet, 0, len(sources))
+	sheets := make([]workbookSheet, 0, len(parsedSources))
 	nameUsage := make(map[string]int)
 	finalNames := make(map[string]struct{})
 
-	for index, source := range sources {
+	for index, source := range parsedSources {
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			return fmt.Errorf("parse %s: %w", sheetName, err)
-		}
+		rows := make([][]SpreadsheetCell, 0, len(source.Cases)+1)
+		rows = append(rows, spreadsheetCells(spreadsheetHeaders))
 
-		rows := make([][]string, 0, len(cases)+1)
-		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
-
-		for _, aCase := range cases {
-			rows = append(rows, caseRow(aCase))
+		for _, aCase := range source.Cases {
+			rows = append(rows, caseRows(aCase)...)
 		}
 
 		sheets = append(sheets, workbookSheet{Name: sheetName, Rows: rows})
@@ -151,12 +231,12 @@ func (c *MarkdownToSpreadsheet) Convert(sources []Source, output io.Writer) erro
 
 // MarkdownToGoogleSpreadsheet orchestrates the conversion of Markdown cases into Google Sheets.
 type MarkdownToGoogleSpreadsheet struct {
-	parser  CaseParser
+	parser  MarkdownParser
 	creator GoogleSpreadsheetCreator
 }
 
 // NewMarkdownToGoogleSpreadsheet wires the Google Sheets converter with the provided dependencies.
-func NewMarkdownToGoogleSpreadsheet(parser CaseParser, creator GoogleSpreadsheetCreator) *MarkdownToGoogleSpreadsheet {
+func NewMarkdownToGoogleSpreadsheet(parser MarkdownParser, creator GoogleSpreadsheetCreator) *MarkdownToGoogleSpreadsheet {
 	return &MarkdownToGoogleSpreadsheet{parser: parser, creator: creator}
 }
 
@@ -165,28 +245,24 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 	if title == "" {
 		return "", fmt.Errorf("spreadsheet title cannot be empty")
 	}
-	if len(sources) == 0 {
-		return "", fmt.Errorf("no sources provided")
+	parsedSources, err := requireValidSources(c.parser, sources)
+	if err != nil {
+		return "", err
 	}
 
-	sheets := make([]GoogleSpreadsheetSheet, 0, len(sources))
+	sheets := make([]GoogleSpreadsheetSheet, 0, len(parsedSources))
 	nameUsage := make(map[string]int)
 	finalNames := make(map[string]struct{})
 
-	for index, source := range sources {
+	for index, source := range parsedSources {
 		sheetBase := deriveSheetName(source.Name, index)
 		sheetName := ensureUniqueSheetName(sheetBase, nameUsage, finalNames)
 
-		cases, err := c.parser.Parse(source.Reader)
-		if err != nil {
-			return "", fmt.Errorf("parse %s: %w", sheetName, err)
-		}
+		rows := make([][]SpreadsheetCell, 0, len(source.Cases)+1)
+		rows = append(rows, spreadsheetCells(spreadsheetHeaders))
 
-		rows := make([][]string, 0, len(cases)+1)
-		rows = append(rows, append([]string(nil), spreadsheetHeaders...))
-
-		for _, aCase := range cases {
-			rows = append(rows, caseRow(aCase))
+		for _, aCase := range source.Cases {
+			rows = append(rows, caseRows(aCase)...)
 		}
 
 		sheets = append(sheets, GoogleSpreadsheetSheet{Title: sheetName, Rows: rows})
@@ -203,7 +279,15 @@ func (c *MarkdownToGoogleSpreadsheet) Create(ctx context.Context, title string, 
 
 type workbookSheet struct {
 	Name string
-	Rows [][]string
+	Rows [][]SpreadsheetCell
+}
+
+func cellTexts(cells []SpreadsheetCell) []string {
+	values := make([]string, len(cells))
+	for i, cell := range cells {
+		values[i] = cell.Text
+	}
+	return values
 }
 
 func writeWorkbook(w io.Writer, sheets []workbookSheet) error {
@@ -239,6 +323,11 @@ func writeWorkbook(w io.Writer, sheets []workbookSheet) error {
 		return err
 	}
 
+	if err := writeZipFile(zipWriter, "xl/styles.xml", workbookStyles); err != nil {
+		zipWriter.Close()
+		return err
+	}
+
 	for i, sheet := range sheets {
 		path := fmt.Sprintf("xl/worksheets/sheet%d.xml", i+1)
 		if err := writeZipFile(zipWriter, path, buildWorksheetXML(sheet.Rows)); err != nil {
@@ -267,10 +356,13 @@ func buildContentTypes(sheets []workbookSheet) string {
 	builder.WriteString(`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`)
 	builder.WriteString(`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`)
 	builder.WriteString(`<Default Extension="xml" ContentType="application/xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>`)
+	builder.WriteString(`<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`)
 	builder.WriteString(`<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`)
 	for i := range sheets {
 		builder.WriteString(fmt.Sprintf(`<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`, i+1))
 	}
+	builder.WriteString(`<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`)
 	builder.WriteString(`</Types>`)
 	return builder.String()
 }
@@ -294,36 +386,145 @@ func buildWorkbookRelationships(sheets []workbookSheet) string {
 	for i := range sheets {
 		builder.WriteString(fmt.Sprintf(`<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>`, i+1, i+1))
 	}
+	builder.WriteString(fmt.Sprintf(`<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`, len(sheets)+1))
 	builder.WriteString(`</Relationships>`)
 	return builder.String()
 }
 
-func buildWorksheetXML(rows [][]string) string {
+func buildWorksheetXML(rows [][]SpreadsheetCell) string {
 	var builder strings.Builder
 	builder.WriteString(xml.Header)
 	builder.WriteString(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`)
 
-	if len(rows) > 0 && len(rows[0]) > 0 {
-		lastCol := columnName(len(rows[0]))
+	columnCount := maxColumnCount(rows)
+	if len(rows) > 0 && columnCount > 0 {
+		lastCol := columnName(columnCount)
 		builder.WriteString(fmt.Sprintf(`<dimension ref="A1:%s%d"/>`, lastCol, len(rows)))
 	}
+
+	builder.WriteString(`<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>`)
+	builder.WriteString(`<sheetFormatPr defaultRowHeight="18"/>`)
+	builder.WriteString(`<cols>`)
+	for index, width := range spreadsheetColumnWidths {
+		columnIndex := index + 1
+		builder.WriteString(fmt.Sprintf(`<col min="%d" max="%d" width="%.1f" customWidth="1"/>`, columnIndex, columnIndex, width))
+	}
+	builder.WriteString(`</cols>`)
 
 	builder.WriteString(`<sheetData>`)
 	for i, row := range rows {
 		rowIndex := i + 1
-		builder.WriteString(fmt.Sprintf(`<row r="%d">`, rowIndex))
-		for j, value := range row {
+		rowHeight := spreadsheetRowHeight(rowIndex, row)
+		builder.WriteString(fmt.Sprintf(`<row r="%d" ht="%.1f" customHeight="1">`, rowIndex, rowHeight))
+		for j, cell := range row {
 			cellRef := fmt.Sprintf("%s%d", columnName(j+1), rowIndex)
-			if value == "" {
-				builder.WriteString(fmt.Sprintf(`<c r="%s"/>`, cellRef))
+			styleIndex := spreadsheetStyleIndex(rowIndex, j+1)
+			if cell.Text == "" {
+				builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d"/>`, cellRef, styleIndex))
 				continue
 			}
-			builder.WriteString(fmt.Sprintf(`<c r="%s" t="inlineStr"><is><t>%s</t></is></c>`, cellRef, escapeCellText(value)))
+			builder.WriteString(fmt.Sprintf(`<c r="%s" s="%d" t="inlineStr">%s</c>`, cellRef, styleIndex, buildInlineStringXML(cell)))
 		}
 		builder.WriteString(`</row>`)
 	}
-	builder.WriteString(`</sheetData></worksheet>`)
+	builder.WriteString(`</sheetData>`)
+	if len(rows) > 0 && columnCount > 0 {
+		builder.WriteString(fmt.Sprintf(`<autoFilter ref="A1:%s%d"/>`, columnName(columnCount), len(rows)))
+	}
+	builder.WriteString(`</worksheet>`)
 	return builder.String()
+}
+
+var spreadsheetColumnWidths = []float64{18, 18, 24, 42, 42, 14, 13, 16, 32}
+
+func buildInlineStringXML(cell SpreadsheetCell) string {
+	if len(cell.InlineCode) == 0 {
+		return `<is><t xml:space="preserve">` + escapeCellText(cell.Text) + `</t></is>`
+	}
+
+	var builder strings.Builder
+	builder.WriteString(`<is>`)
+	position := 0
+	for _, codeRange := range cell.InlineCode {
+		if codeRange.Start > position {
+			writeRichTextRun(&builder, cell.Text[position:codeRange.Start], false)
+		}
+		writeRichTextRun(&builder, cell.Text[codeRange.Start:codeRange.End], true)
+		position = codeRange.End
+	}
+	if position < len(cell.Text) {
+		writeRichTextRun(&builder, cell.Text[position:], false)
+	}
+	builder.WriteString(`</is>`)
+	return builder.String()
+}
+
+func writeRichTextRun(builder *strings.Builder, value string, code bool) {
+	builder.WriteString(`<r>`)
+	if code {
+		builder.WriteString(`<rPr><rFont val="Consolas"/><sz val="10"/></rPr>`)
+	}
+	builder.WriteString(`<t xml:space="preserve">`)
+	builder.WriteString(escapeCellText(value))
+	builder.WriteString(`</t></r>`)
+}
+
+func maxColumnCount(rows [][]SpreadsheetCell) int {
+	count := 0
+	for _, row := range rows {
+		if len(row) > count {
+			count = len(row)
+		}
+	}
+	return count
+}
+
+func spreadsheetStyleIndex(row, column int) int {
+	if row == 1 {
+		return 1
+	}
+	if column <= 5 {
+		return 2
+	}
+	if column == 7 {
+		return 4
+	}
+	return 3
+}
+
+func spreadsheetRowHeight(rowIndex int, row []SpreadsheetCell) float64 {
+	if rowIndex == 1 {
+		return 30
+	}
+
+	maxLines := 1
+	for index, cell := range row {
+		width := 18
+		if index < len(spreadsheetColumnWidths) {
+			width = int(spreadsheetColumnWidths[index])
+		}
+
+		lines := 0
+		for _, segment := range strings.Split(cell.Text, "\n") {
+			lineCount := (utf8.RuneCountInString(segment) + width - 1) / width
+			if lineCount < 1 {
+				lineCount = 1
+			}
+			lines += lineCount
+		}
+		if lines > maxLines {
+			maxLines = lines
+		}
+	}
+
+	height := float64(maxLines*15 + 6)
+	if height < 36 {
+		return 36
+	}
+	if height > 180 {
+		return 180
+	}
+	return height
 }
 
 func escapeCellText(value string) string {
@@ -482,3 +683,31 @@ const coreProperties = `<?xml version="1.0" encoding="UTF-8"?>
   <dc:creator>casemd</dc:creator>
   <cp:lastModifiedBy>casemd</cp:lastModifiedBy>
 </cp:coreProperties>`
+
+const workbookStyles = `<?xml version="1.0" encoding="UTF-8"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFD9E2F3"/></left><right style="thin"><color rgb="FFD9E2F3"/></right><top style="thin"><color rgb="FFD9E2F3"/></top><bottom style="thin"><color rgb="FFD9E2F3"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="5">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="14" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`

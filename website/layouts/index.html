@@ -1,0 +1,14 @@
+{{ define "main" }}
+  <article>
+    <h1>{{ .Title }}</h1>
+    {{ .Content }}
+  </article>
+  <section aria-labelledby="browse-title">
+    <h2 id="browse-title">Browse documentation</h2>
+    <ul>
+      <li><a href="{{ "/guides/" | relURL }}">Guides</a></li>
+      <li><a href="{{ "/adr/" | relURL }}">Architecture Decision Records</a></li>
+      <li><a href="{{ "/glossary/" | relURL }}">Glossary</a></li>
+    </ul>
+  </section>
+{{ end }}

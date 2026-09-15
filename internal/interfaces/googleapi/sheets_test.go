@@ -17,7 +17,10 @@ func TestBuildSpreadsheetPayload(t *testing.T) {
 		Sheets: []app.GoogleSpreadsheetSheet{
 			{
 				Title: "alpha",
-				Rows:  [][]string{{"A", "B"}, {"1", "2"}},
+				Rows: [][]app.SpreadsheetCell{
+					{{Text: "A"}, {Text: "B"}},
+					{{Text: "1"}, {Text: "2"}},
+				},
 			},
 		},
 	}
@@ -54,6 +57,34 @@ func TestBuildSpreadsheetPayload(t *testing.T) {
 	}
 }
 
+func TestBuildSpreadsheetPayloadFormatsInlineCode(t *testing.T) {
+	spreadsheet := app.GoogleSpreadsheet{
+		Title: "Casemd Export",
+		Sheets: []app.GoogleSpreadsheetSheet{{
+			Title: "alpha",
+			Rows: [][]app.SpreadsheetCell{{{
+				Text:       "確認: 山田 Taro",
+				InlineCode: []app.InlineCodeRange{{Start: len("確認: "), End: len("確認: 山田 Taro")}},
+			}}},
+		}},
+	}
+
+	payload, err := buildSpreadsheetPayload(spreadsheet)
+	if err != nil {
+		t.Fatalf("buildSpreadsheetPayload() error = %v", err)
+	}
+	cell := payload.Sheets[0].Data[0].RowData[0].Values[0]
+	if cell.UserEnteredValue.StringValue != "確認: 山田 Taro" {
+		t.Fatalf("text = %q", cell.UserEnteredValue.StringValue)
+	}
+	if len(cell.TextFormatRuns) != 2 {
+		t.Fatalf("format runs = %#v, want normal and code runs", cell.TextFormatRuns)
+	}
+	if cell.TextFormatRuns[1].StartIndex != len([]rune("確認: ")) || cell.TextFormatRuns[1].Format.FontFamily != "Roboto Mono" {
+		t.Fatalf("code format run = %#v", cell.TextFormatRuns[1])
+	}
+}
+
 func TestBuildSpreadsheetPayloadRequiresTitle(t *testing.T) {
 	_, err := buildSpreadsheetPayload(app.GoogleSpreadsheet{})
 	if err == nil {
@@ -87,7 +118,7 @@ func TestCreateSpreadsheet(t *testing.T) {
 
 	spreadsheet := app.GoogleSpreadsheet{
 		Title:  "Casemd Export",
-		Sheets: []app.GoogleSpreadsheetSheet{{Title: "alpha", Rows: [][]string{{"A"}}}},
+		Sheets: []app.GoogleSpreadsheetSheet{{Title: "alpha", Rows: [][]app.SpreadsheetCell{{{Text: "A"}}}}},
 	}
 
 	id, err := service.CreateSpreadsheet(context.Background(), spreadsheet)
