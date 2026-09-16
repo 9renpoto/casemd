@@ -81,7 +81,8 @@ git tag --annotate vX.Y.Z --message "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-Pushing the tag triggers the release workflow, which creates a GitHub Release, uploads Darwin and Linux archives with `checksums.txt`, and updates the Homebrew tap.
+Push the tag only; do not publish a GitHub Release manually.
+Pushing the tag triggers the release workflow, which uses the reviewed CHANGELOG entry as the Release body, uploads Darwin and Linux archives with `checksums.txt`, updates the Homebrew tap, and then publishes the GitHub Release.
 
 After it completes, verify the published install path in a clean environment:
 
@@ -315,7 +316,7 @@ docker run --detach --name casemd --publish 3000:3000 ghcr.io/9renpoto/casemd:la
 curl --fail http://localhost:3000/healthz
 ```
 
-Create a GitHub release with a tag such as `v0.1.0` to publish `latest` and `v0.1.0`.
+Push a version tag such as `v0.1.0` to publish `latest` and `v0.1.0`.
 
 ## Development
 
