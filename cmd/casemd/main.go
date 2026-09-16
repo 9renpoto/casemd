@@ -26,9 +26,16 @@ func (p *coreParserAdapter) ParseWithDiagnostics(source string, r io.Reader) ([]
 }
 
 func main() {
-	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "version") {
-		fmt.Fprintln(os.Stdout, version)
-		return
+	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string, stdout, stderr io.Writer) error {
+	if len(args) == 1 && (args[0] == "--version" || args[0] == "version") {
+		_, err := fmt.Fprintln(stdout, version)
+		return err
 	}
 
 	parserAdapter := &coreParserAdapter{}
@@ -39,35 +46,28 @@ func main() {
 
 	if token := os.Getenv("GOOGLE_SHEETS_ACCESS_TOKEN"); token != "" {
 		if sheetsService, err := googleapi.NewSheetsService(nil, token); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: google sheets support disabled: %v\n", err)
+			fmt.Fprintf(stderr, "warning: google sheets support disabled: %v\n", err)
 		} else {
 			googleConverter = app.NewMarkdownToGoogleSpreadsheet(parserAdapter, sheetsService)
 		}
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "serve" {
+	if len(args) > 0 && args[0] == "serve" {
 		addr := os.Getenv("CASEMD_WEB_ADDR")
-		if len(os.Args) > 2 {
-			addr = os.Args[2]
+		if len(args) > 1 {
+			addr = args[1]
 		}
 		if addr == "" {
 			addr = ":3000"
 		}
 
 		server := web.NewServer(csvConverter)
-		fmt.Fprintf(os.Stdout, "Starting casemd web UI on %s\n", addr)
-		if err := server.Listen(addr); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		return
+		fmt.Fprintf(stdout, "Starting casemd web UI on %s\n", addr)
+		return server.Listen(addr)
 	}
 
-	tool := cli.New(os.Stdout, os.Stderr, validator, csvConverter, spreadsheetConverter, googleConverter)
+	tool := cli.New(stdout, stderr, validator, csvConverter, spreadsheetConverter, googleConverter)
 	application := app.New(tool)
 
-	if err := application.Run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	return application.Run(args)
 }

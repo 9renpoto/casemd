@@ -67,6 +67,7 @@ Execution results, test dates, testers, and notes can be recorded in the generat
 ## Releases
 
 The `Bump version` workflow runs every Tuesday and can also be dispatched manually for the intended SemVer increment.
+It calculates the next tag version and includes that increment in the generated release commit.
 If no GitHub Release exists yet, a `minor` bump bootstraps `v0.1.0`.
 It creates a draft pull request from the `release` branch containing the generated CHANGELOG entry.
 
@@ -301,7 +302,8 @@ The web UI is published as a small multi-architecture image at `ghcr.io/9renpoto
 
 The image supports Linux `amd64` and `arm64` and listens on port `3000`.
 
-Only two tags are published for each release: `latest` and the exact SemVer version.
+Only two tags are published for each release: `latest` and the exact Git tag name, such as `v0.1.0`.
+The image label and the `casemd --version` output inside the image use that same tag name.
 
 Use a version tag in production when you need reproducible deployments.
 
@@ -313,7 +315,7 @@ docker run --detach --name casemd --publish 3000:3000 ghcr.io/9renpoto/casemd:la
 curl --fail http://localhost:3000/healthz
 ```
 
-Create a GitHub release with a tag such as `v0.1.0` to publish `latest` and `0.1.0`.
+Create a GitHub release with a tag such as `v0.1.0` to publish `latest` and `v0.1.0`.
 
 ## Development
 
