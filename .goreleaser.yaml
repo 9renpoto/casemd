@@ -31,6 +31,8 @@ checksum:
 
 release:
   draft: false
+  preflight:
+    fail_on_error: true
 
 # A cask is Homebrew's supported mechanism for installing pre-built binaries.
 # The token must have contents:write access to 9renpoto/homebrew-tap.

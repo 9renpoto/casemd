@@ -29,6 +29,39 @@ jobs:
             exit 1
           fi
 
+          release_notes="$RUNNER_TEMP/release-notes.md"
+          awk -v version="$version" '
+            BEGIN { heading = "## v" version " (" }
+            index($0, heading) == 1 { found = 1 }
+            found && $0 ~ /^## v/ && index($0, heading) != 1 { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > "$release_notes"
+          if [[ ! -s "$release_notes" ]]; then
+            echo "Could not extract release notes for v$version from CHANGELOG.md." >&2
+            exit 1
+          fi
+          echo "RELEASE_NOTES_FILE=$release_notes" >> "$GITHUB_ENV"
+
+      - name: Verify release targets are publishable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "A GitHub Release already exists for $GITHUB_REF_NAME. Push tags only; GoReleaser publishes the release and its assets." >&2
+            exit 1
+          fi
+          if [[ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]]; then
+            echo "HOMEBREW_TAP_GITHUB_TOKEN must grant contents:write access to 9renpoto/homebrew-tap." >&2
+            exit 1
+          fi
+          can_push="$(GH_TOKEN="$HOMEBREW_TAP_GITHUB_TOKEN" gh api repos/9renpoto/homebrew-tap --jq '.permissions.push')"
+          if [[ "$can_push" != "true" ]]; then
+            echo "HOMEBREW_TAP_GITHUB_TOKEN must grant contents:write access to 9renpoto/homebrew-tap." >&2
+            exit 1
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -40,7 +73,7 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes "${{ env.RELEASE_NOTES_FILE }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
