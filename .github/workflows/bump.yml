@@ -27,6 +27,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: generate new version and save to env variable
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -50,13 +52,19 @@ jobs:
 
       - name: semver
         id: get_version
-        run: echo "NEW_VERSION=$(docker run --rm alpine/semver semver -c -i ${{ inputs.semver }} ${{ steps.github_releases.outputs.result }})" >> "$GITHUB_OUTPUT"
+        env:
+          SEMVER: ${{ inputs.semver }}
+          LATEST_RELEASE: ${{ steps.github_releases.outputs.result }}
+        run: |
+          new_version="$(docker run --rm alpine/semver semver -c -i "$SEMVER" "$LATEST_RELEASE")"
+          echo "NEW_VERSION=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         id: get_release_note
         env:
-          NEW_VERSION: ${{steps.get_version.outputs.NEW_VERSION}}
+          NEW_VERSION: ${{ steps.get_version.outputs.NEW_VERSION }}
+          PREVIOUS_TAG_NAME: ${{ steps.github_releases.outputs.result }}
         with:
           result-encoding: string
           script: |
@@ -65,16 +73,20 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: `v${process.env.NEW_VERSION}`,
-                previous_tag_name: '${{ steps.github_releases.outputs.result }}' === 'v0.0.0' ? undefined : '${{ steps.github_releases.outputs.result }}',
+                previous_tag_name: process.env.PREVIOUS_TAG_NAME === 'v0.0.0' ? undefined : process.env.PREVIOUS_TAG_NAME,
               }
             );
             return notes.data.body;
 
-      - run: |
-          cat << EOF >> new
-          ## v${{ steps.get_version.outputs.NEW_VERSION }} ($(date '+%Y-%m-%d'))
-          ${{ steps.get_release_note.outputs.result }}
-          EOF
+      - name: Prepare changelog entry
+        env:
+          NEW_VERSION: ${{ steps.get_version.outputs.NEW_VERSION }}
+          RELEASE_NOTES: ${{ steps.get_release_note.outputs.result }}
+        run: |
+          {
+            printf '## v%s (%s)\n' "$NEW_VERSION" "$(date '+%Y-%m-%d')"
+            printf '%s\n' "$RELEASE_NOTES"
+          } > new
       - run: cat new ./CHANGELOG.md > temp
       - run: mv temp ./CHANGELOG.md
       - run: rm new
