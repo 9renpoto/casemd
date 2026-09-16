@@ -2,26 +2,13 @@ version: 2
 updates:
   - package-ecosystem: docker
     directory: "/"
-    schedule:
-      interval: "weekly"
     labels:
       - "Type: Dependencies"
     cooldown:
       default-days: 7
 
-  - package-ecosystem: devcontainers
-    directory: "/"
-    schedule:
-      interval: "daily"
-    labels:
-      - "Type: Maintenance"
-    cooldown:
-      default-days: 7
-
   - package-ecosystem: github-actions
     directory: "/"
-    schedule:
-      interval: "daily"
     labels:
       - "Type: Maintenance"
     cooldown:
@@ -33,8 +20,6 @@ updates:
 
   - package-ecosystem: gomod
     directory: "/"
-    schedule:
-      interval: "daily"
     labels:
       - "Type: Maintenance"
     cooldown:
