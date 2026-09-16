@@ -1,3 +1,12 @@
+## v0.0.3 (2026-09-16)
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Other Changes
+* Fix release Go setup by @9renpoto in https://github.com/9renpoto/casemd/pull/112
+
+
+**Full Changelog**: https://github.com/9renpoto/casemd/compare/v0.0.2...v0.0.3
 ## v0.0.2 (2026-09-16)
 <!-- Release notes generated using configuration in .github/release.yml at main -->
 
