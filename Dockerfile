@@ -7,10 +7,12 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
+ARG VERSION=dev
+
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
-    -ldflags='-s -w' \
+    -ldflags="-s -w -X main.version=${VERSION}" \
     -o /out/casemd \
     ./cmd/casemd
 
