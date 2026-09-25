@@ -72,6 +72,7 @@ If no GitHub Release exists yet, a `minor` bump bootstraps `v0.1.0`.
 It creates a draft pull request from the `release` branch containing the generated CHANGELOG entry.
 
 Review the draft pull request's version, release notes, labels, and milestone, then merge it after CI succeeds.
+The version calculation reserves every existing semantic-version Git tag, even when a previous release attempt did not create a GitHub Release.
 After the merge, make sure the GitHub Actions secret `HOMEBREW_TAP_GITHUB_TOKEN` has `contents: write` permission for `9renpoto/homebrew-tap`, and tag the merged commit with its CHANGELOG version:
 
 ```sh
@@ -82,7 +83,9 @@ git push origin vX.Y.Z
 ```
 
 Push the tag only; do not publish a GitHub Release manually.
+Do not move or reuse a tag after pushing it; prepare the next version if a release attempt has already published any artifact.
 Pushing the tag triggers the release workflow, which uses the reviewed CHANGELOG entry as the Release body, uploads Darwin and Linux archives with `checksums.txt`, updates the Homebrew tap, and then publishes the GitHub Release.
+The container workflow applies the same tag-to-CHANGELOG check before publishing an image.
 
 After it completes, verify the published install path in a clean environment:
 

@@ -22,6 +22,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Verify the image tag matches CHANGELOG
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          changelog_version="$(sed -nE 's/^## v([0-9]+\.[0-9]+\.[0-9]+) .*/\1/p' CHANGELOG.md | head -n 1)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$version" != "$changelog_version" ]]; then
+            echo "The container tag must match the first CHANGELOG entry formatted as ## vX.Y.Z (YYYY-MM-DD)." >&2
+            exit 1
+          fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
