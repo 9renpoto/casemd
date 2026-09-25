@@ -31,33 +31,58 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: generate new version and save to env variable
+      - name: Find the latest reserved version
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        id: github_releases
+        id: latest_version
         with:
           result-encoding: string
           script: |
+            const versions = ['v0.0.0'];
+
             try {
               const release = await github.rest.repos.getLatestRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
               });
-              return release.data.tag_name;
+              versions.push(release.data.tag_name);
             } catch (error) {
-              if (error.status === 404) {
-                core.notice('No GitHub Release exists; bootstrapping from v0.0.0.');
-                return 'v0.0.0';
+              if (error.status !== 404) {
+                throw error;
               }
-              throw error;
             }
+
+            const refs = await github.paginate(github.rest.git.listMatchingRefs, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'tags/v',
+              per_page: 100,
+            });
+            versions.push(...refs.map(({ ref }) => ref.replace('refs/tags/', '')));
+
+            const semver = /^v(\d+)\.(\d+)\.(\d+)$/;
+            const latest = versions
+              .filter((version) => semver.test(version))
+              .sort((left, right) => {
+                const leftParts = left.match(semver).slice(1).map(Number);
+                const rightParts = right.match(semver).slice(1).map(Number);
+                for (let index = 0; index < leftParts.length; index += 1) {
+                  if (leftParts[index] !== rightParts[index]) {
+                    return rightParts[index] - leftParts[index];
+                  }
+                }
+                return 0;
+              })[0];
+
+            core.notice(`Using ${latest} as the latest reserved version.`);
+            return latest;
 
       - name: semver
         id: get_version
         env:
           SEMVER: ${{ inputs.semver }}
-          LATEST_RELEASE: ${{ steps.github_releases.outputs.result }}
+          LATEST_VERSION: ${{ steps.latest_version.outputs.result }}
         run: |
-          new_version="$(docker run --rm alpine/semver semver -c -i "$SEMVER" "$LATEST_RELEASE")"
+          new_version="$(docker run --rm alpine/semver semver -c -i "$SEMVER" "$LATEST_VERSION")"
           echo "NEW_VERSION=$new_version" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes
@@ -65,7 +90,7 @@ jobs:
         id: get_release_note
         env:
           NEW_VERSION: ${{ steps.get_version.outputs.NEW_VERSION }}
-          PREVIOUS_TAG_NAME: ${{ steps.github_releases.outputs.result }}
+          PREVIOUS_TAG_NAME: ${{ steps.latest_version.outputs.result }}
         with:
           result-encoding: string
           script: |
