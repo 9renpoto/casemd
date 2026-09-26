@@ -56,8 +56,12 @@ jobs:
             echo "HOMEBREW_TAP_GITHUB_TOKEN must grant contents:write access to 9renpoto/homebrew-tap." >&2
             exit 1
           fi
-          can_push="$(GH_TOKEN="$HOMEBREW_TAP_GITHUB_TOKEN" gh api repos/9renpoto/homebrew-tap --jq '.permissions.push')"
-          if [[ "$can_push" != "true" ]]; then
+          if ! GH_TOKEN="$HOMEBREW_TAP_GITHUB_TOKEN" gh api \
+            --method POST \
+            repos/9renpoto/homebrew-tap/git/blobs \
+            -f content="casemd release preflight ${GITHUB_RUN_ID}" \
+            -f encoding=utf-8 \
+            --silent; then
             echo "HOMEBREW_TAP_GITHUB_TOKEN must grant contents:write access to 9renpoto/homebrew-tap." >&2
             exit 1
           fi

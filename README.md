@@ -74,6 +74,7 @@ It creates a draft pull request from the `release` branch containing the generat
 Review the draft pull request's version, release notes, labels, and milestone, then merge it after CI succeeds.
 The version calculation reserves every existing semantic-version Git tag, even when a previous release attempt did not create a GitHub Release.
 After the merge, make sure the GitHub Actions secret `HOMEBREW_TAP_GITHUB_TOKEN` has `contents: write` permission for `9renpoto/homebrew-tap`, and tag the merged commit with its CHANGELOG version:
+The release preflight verifies this permission by creating an unreferenced Git blob, without changing a branch or file in the tap repository.
 
 ```sh
 git checkout main
