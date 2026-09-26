@@ -42,7 +42,7 @@ homebrew_casks:
       - default
     binaries:
       - casemd
-    description: Convert structured Markdown inspection checklists into CSV files and spreadsheets.
+    description: Convert structured Markdown checklists to CSV and spreadsheets
     homepage: https://github.com/9renpoto/casemd
     repository:
       owner: 9renpoto
