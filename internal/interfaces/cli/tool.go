@@ -16,12 +16,12 @@ import (
 )
 
 var (
-	errMissingInput                = errors.New("missing required flag: --input")
-	errMissingOutput               = errors.New("missing required flag: --csv-output, --spreadsheet-output, or --google-spreadsheet-title")
+	errMissingInput                = errors.New("missing required flag: --input; specify --input <file.md> (repeat for multiple files)")
+	errMissingOutput               = errors.New("missing output destination; specify --csv-output <file.csv>, --spreadsheet-output <file.xlsx>, or --google-spreadsheet-title <title>; to check the format only, run casemd validate --input <file.md>")
 	errMissingValidator            = errors.New("validation requested but validator is not configured")
 	errMissingCSVConverter         = errors.New("csv output requested but converter is not configured")
 	errMissingSpreadsheetConverter = errors.New("spreadsheet output requested but converter is not configured")
-	errMissingGoogleConverter      = errors.New("google spreadsheet requested but converter is not configured")
+	errMissingGoogleConverter      = errors.New("Google Spreadsheet creation is unavailable; set GOOGLE_SHEETS_ACCESS_TOKEN to an OAuth access token with the https://www.googleapis.com/auth/spreadsheets scope and retry; check any initialization warning on standard error")
 )
 
 // Converter drives Markdown transformations from the CLI layer.
@@ -72,6 +72,7 @@ func (t *Tool) runValidate(args []string) error {
 		fmt.Fprintf(t.stderr, "Validate Markdown inspection sheets without generating output artifacts.\n\n")
 		fmt.Fprintf(t.stderr, "Usage:\n  casemd validate --input <file> [--input <file> ...]\n\nFlags:\n")
 		fs.PrintDefaults()
+		printValidationHelp(t.stderr)
 	}
 
 	help, err := parseFlagSet(fs, args)
@@ -90,7 +91,11 @@ func (t *Tool) runValidate(args []string) error {
 	if err != nil {
 		return err
 	}
-	return t.validateInputs(inputs)
+	if err := t.validateInputs(inputs); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(t.stdout, "Validation passed: %d input file(s) conform to the casemd v1 format.\n", len(inputs))
+	return err
 }
 
 func (t *Tool) runConvert(args []string) (err error) {
@@ -109,8 +114,10 @@ func (t *Tool) runConvert(args []string) (err error) {
 
 	fs.Usage = func() {
 		fmt.Fprintf(t.stderr, "casemd converts Markdown inspection sheets into CSV files, Excel workbooks, and Google Spreadsheets.\n\n")
-		fmt.Fprintf(t.stderr, "Usage:\n  casemd [flags]\n  casemd validate --input <file> [--input <file> ...]\n\nFlags:\n")
+		fmt.Fprintf(t.stderr, "Usage:\n  casemd --input <file> [--input <file> ...] <output flags>\n  casemd validate --input <file> [--input <file> ...]\n  casemd serve [address]\n  casemd --version\n\nFlags:\n")
 		fs.PrintDefaults()
+		fmt.Fprint(t.stderr, "\nConversion:\n  Specify at least one output flag; multiple output formats may be requested together.\n  Each input becomes a separate XLSX worksheet. Existing output files are overwritten.\n  Google Sheets requires GOOGLE_SHEETS_ACCESS_TOKEN with the spreadsheets OAuth scope.\n\nExamples:\n  casemd --input notes.md --csv-output build/notes.csv\n  casemd --input notes.md --spreadsheet-output build/notes.xlsx\n  casemd validate --input notes.md\n\nWeb UI:\n  casemd serve defaults to :3000; set CASEMD_WEB_ADDR or pass an address.\n")
+		printValidationHelp(t.stderr)
 	}
 
 	help, parseErr := parseFlagSet(fs, args)
@@ -210,9 +217,13 @@ func parseFlagSet(fs *flag.FlagSet, args []string) (bool, error) {
 		return false, err
 	}
 	if fs.NArg() > 0 {
-		return false, fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+		return false, fmt.Errorf("unexpected positional arguments: %v; pass Markdown paths with --input <file.md>; run %s --help for usage", fs.Args(), fs.Name())
 	}
 	return false, nil
+}
+
+func printValidationHelp(output io.Writer) {
+	fmt.Fprint(output, "\nInput format (casemd v1):\n  Optional # document title, once before the hierarchy.\n  ## major item > ### medium item > #### test case; heading titles must be nonempty.\n  Each major item needs a medium item; each medium item needs a test case.\n  Each test case needs an ordered step (1. Action) and a checkpoint (* [ ] Expected result).\n  Heading levels 5 and 6 are unsupported.\n\nValidation:\n  casemd validate --input notes.md --input follow-up.md\n  Success is reported on standard output. Diagnostics go to standard error as\n  file:line: rule: message, followed by a suggested correction when available.\n  Fix all diagnostics, then run validation again. Validation generates no artifacts.\n  Conversion checks the same rules before creating output files or Google Sheets.\n\nExit codes:\n  0  Command succeeded (including help and version).\n  1  Invalid input, invalid arguments, or an execution error.\n")
 }
 
 func (t *Tool) validateInputs(inputs inputCollection) error {
@@ -244,7 +255,7 @@ func (m *multiValueFlag) String() string {
 
 func (m *multiValueFlag) Set(value string) error {
 	if value == "" {
-		return errors.New("input path cannot be empty")
+		return errors.New("input path cannot be empty; specify --input <file.md>")
 	}
 	*m = append(*m, value)
 	return nil

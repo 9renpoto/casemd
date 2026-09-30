@@ -112,8 +112,8 @@ func TestToolRunValidateMultipleInputs(t *testing.T) {
 	if err := tool.Run([]string{"validate", "--input", firstPath, "--input", secondPath}); err != nil {
 		t.Fatalf("Run() returned an unexpected error: %v", err)
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("validate wrote to stdout: %q", stdout.String())
+	if got, want := stdout.String(), "Validation passed: 2 input file(s) conform to the casemd v1 format.\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("validate wrote diagnostics for valid input: %q", stderr.String())
@@ -200,6 +200,11 @@ func TestToolRunValidateHelp(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "casemd validate --input") {
 		t.Fatalf("help does not describe validate usage: %q", stderr.String())
+	}
+	for _, want := range []string{"Input format (casemd v1):", "1. Action", "* [ ] Expected result", "file:line: rule: message", "Exit codes:"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("help missing %q: %q", want, stderr.String())
+		}
 	}
 }
 
