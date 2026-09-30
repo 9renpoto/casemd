@@ -136,6 +136,18 @@ Show the available flags:
 casemd --help
 ```
 
+Validate Markdown files before converting them:
+
+```sh
+casemd validate --input notes.md
+casemd validate --input notes.md --input follow-up.md
+```
+
+Validation produces no output artifacts, reports success and the input file count on standard output, and exits with code `0` when all inputs are valid.
+Invalid inputs exit with code `1` and report the file, line number, validation rule, and suggested correction to standard error.
+The validator checks heading titles and hierarchy, supported heading levels, and the presence of ordered steps and task-list checkpoints in each case.
+Use `casemd validate --help` to see the available flags.
+
 Convert one Markdown file to CSV and XLSX:
 
 ```sh
@@ -181,6 +193,19 @@ The web UI exposes `GET /healthz` and `POST /api/preview` in addition to the bro
 ```sh
 casemd --help
 ```
+
+変換前に Markdown ファイルの形式を検証します。
+
+```sh
+casemd validate --input notes.md
+casemd validate --input notes.md --input follow-up.md
+```
+
+すべての入力が正しい場合は成功メッセージと入力ファイル数を標準出力に表示し、終了コード `0` で終了します。
+入力に問題がある場合は終了コード `1` で終了し、ファイル名、行番号、検証ルール、修正案を標準エラー出力に表示します。
+見出しのタイトルと階層、対応する見出しレベル、各ケースの番号付き手順とタスクリストのチェックポイントを検証します。
+検証では成果物を生成しません。
+利用できるフラグは `casemd validate --help` で確認できます。
 
 Markdown ファイルを CSV と XLSX に変換します。
 
