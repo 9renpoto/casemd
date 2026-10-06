@@ -1,3 +1,16 @@
+## v0.1.0 (2026-10-06)
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### Other Changes
+* Shorten Homebrew cask description by @9renpoto in https://github.com/9renpoto/casemd/pull/127
+* Improve CLI guidance for agents by @9renpoto in https://github.com/9renpoto/casemd/pull/129
+* chore(deps): bump crate-ci/typos from 1.50.1 to 1.50.3 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/131
+* chore(deps): bump golang from `cf6fca6` to `8a5910f` by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/130
+* chore(deps): bump reviewdog/action-actionlint from 1.76.0 to 1.77.0 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/132
+
+
+**Full Changelog**: https://github.com/9renpoto/casemd/compare/v0.0.6...v0.1.0
 ## v0.0.6 (2026-09-26)
 <!-- Release notes generated using configuration in .github/release.yml at main -->
 
