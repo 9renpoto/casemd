@@ -1,0 +1,21 @@
+coverage:
+  paths:
+    - coverage.out
+codeToTestRatio:
+  code:
+    - "**/*.go"
+    - "!**/*_test.go"
+  test:
+    - "**/*_test.go"
+comment:
+  if: is_pull_request
+  hideFooterLink: true
+summary:
+  if: true
+  hideFooterLink: true
+report:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+diff:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
