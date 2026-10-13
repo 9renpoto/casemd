@@ -1,6 +1,7 @@
 # casemd
 
 [![CI](https://github.com/9renpoto/casemd/actions/workflows/ci.yml/badge.svg)](https://github.com/9renpoto/casemd/actions/workflows/ci.yml)
+[![Coverage](https://9renpoto.github.io/casemd/badges/coverage.svg)](https://github.com/9renpoto/casemd/actions/workflows/ci.yml)
 
 Convert structured Markdown inspection checklists into CSV files, Excel workbooks, and Google Spreadsheets.
 

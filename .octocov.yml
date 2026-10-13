@@ -1,18 +1,10 @@
 coverage:
-  paths:
-    - coverage.out
-codeToTestRatio:
-  code:
-    - "**/*.go"
-    - "!**/*_test.go"
-  test:
-    - "**/*_test.go"
-comment:
-  if: is_pull_request
-  hideFooterLink: true
-summary:
-  if: true
-  hideFooterLink: true
+  badge:
+    path: build/coverage.svg
+testExecutionTime:
+  if: "false"
+comment: {}
+summary: {}
 report:
   datastores:
     - artifact://${GITHUB_REPOSITORY}
