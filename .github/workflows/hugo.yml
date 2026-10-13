@@ -1,27 +1,10 @@
 name: Documentation site
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/hugo.yml
-      - README.md
-      - docs/**
-      - website/**
-  pull_request:
-    paths:
-      - .github/workflows/hugo.yml
-      - README.md
-      - docs/**
-      - website/**
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: gh-pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -46,6 +29,12 @@ jobs:
       - name: Build documentation site
         run: hugo --source website --gc --minify
 
+      - name: Download coverage badge
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-badge
+          path: website/public/badges
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -54,6 +43,9 @@ jobs:
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write

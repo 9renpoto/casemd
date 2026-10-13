@@ -1,0 +1,13 @@
+coverage:
+  badge:
+    path: build/coverage.svg
+testExecutionTime:
+  if: "false"
+comment: {}
+summary: {}
+report:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+diff:
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
