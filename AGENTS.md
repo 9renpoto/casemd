@@ -4,7 +4,11 @@
 Runtime code lives under `cmd/casemd/` for the CLI entrypoint, `internal/app/` for use-case orchestration, `internal/core/` for domain rules (e.g., Markdown parsing), and `internal/interfaces/` for adapters such as the CLI layer. Add new adapters under `internal/interfaces/<name>` and keep fixtures beside packages in `testdata/`. Markdown docs and policy files remain in the repository root.
 
 ## Build, Test, and Development Commands
-Prepare Go 1.27.3 or later using the toolchain manager or package distribution appropriate for the development environment. The `go` directive in `go.mod` is the minimum supported toolchain; the Go command automatically selects a newer toolchain when needed. Run `lefthook install` once after cloning, then `lefthook run pre-commit` to execute all mandatory checks. Use `go build ./cmd/casemd` to verify the CLI compiles, `go test ./... -cover` for local feedback, `go vet ./...` for static analysis, and `typos` to validate documentation spelling. CI measures code metrics and reports coverage using octocov.
+Prepare Go 1.27.3 or later using the toolchain manager or package distribution appropriate for the development environment.
+The `go` directive in `go.mod` is the minimum supported toolchain; the Go command automatically selects a newer toolchain when needed.
+Run `lefthook install` once after cloning, then `lefthook run pre-commit` to execute all mandatory checks.
+Use `go build ./cmd/casemd` to verify the CLI compiles, `go test ./... -cover` for local feedback, `go vet ./...` for static analysis, and `typos` to validate documentation spelling.
+CI measures code metrics and reports coverage using octocov.
 
 ## Coding Style & Naming Conventions
 Always format Go code with `gofmt`; the pre-commit hook rewrites staged `.go` files automatically. Keep packages small and focused, favor dependency injection to protect clean-architecture boundaries, and avoid cross-layer imports from inner to outer layers. Use snake_case for package names (`markdownparser`) and PascalCase for exported types, while CLI flags remain kebab-case (e.g., `--input`). Markdown files use one-sentence-per-line formatting and American English spellings to satisfy the typos spell check.
@@ -16,4 +20,6 @@ Co-locate tests with their packages (`internal/core/parser/headings_test.go`). P
 Write imperative, present-tense commit subjects under 72 characters (`Add heading parser`). Squash micro-fixes before review and keep unrelated changes out of the same PR. Each pull request should describe the motivation, outline architectural impacts, and link tracking issues. Attach terminal output or screenshots when behavior changes. Confirm `lefthook run pre-commit` succeeds locally to avoid CI churn.
 
 ## Security & Configuration Tips
-Do not commit credentials. If a devcontainer is added, keep its Go toolchain at or above the minimum in `go.mod`; keep GitHub Actions toolchains at or above that minimum as well.
+Do not commit credentials.
+If a devcontainer is added, keep its Go toolchain at or above the minimum in `go.mod`.
+Keep GitHub Actions toolchains at or above that minimum as well.

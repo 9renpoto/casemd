@@ -99,7 +99,8 @@ casemd --version
 
 ### Requirements
 
-- Go 1.27.3 or later. The Go command automatically selects a newer toolchain when needed.
+- Go 1.27.3 or later.
+  The Go command automatically selects a newer toolchain when needed.
 - An OAuth access token with the `https://www.googleapis.com/auth/spreadsheets` scope when creating Google Spreadsheets.
 
 Install the CLI with Go:
@@ -115,7 +116,8 @@ You can also run it directly from a checkout with `go run ./cmd/casemd`.
 
 ### 必要条件
 
-- Go 1.27.3 以降。必要な場合は Go コマンドが新しい toolchain を自動選択します。
+- Go 1.27.3 以降。
+  必要な場合は Go コマンドが新しい toolchain を自動選択します。
 - Google スプレッドシートを作成する場合は、`https://www.googleapis.com/auth/spreadsheets` スコープを持つ OAuth アクセストークン。
 
 Go で CLI をインストールします。

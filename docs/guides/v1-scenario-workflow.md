@@ -4,7 +4,8 @@ Use this guide to validate a v1 scenario specification, generate an XLSX workboo
 
 ## Prerequisites
 
-- Go 1.27.3 or later is available when running casemd from a checkout. The Go command automatically selects a newer toolchain when needed.
+- Go 1.27.3 or later is available when running casemd from a checkout.
+  The Go command automatically selects a newer toolchain when needed.
 - An Excel-compatible spreadsheet application is available for the visual verification.
 
 ## Validate the specification
@@ -92,7 +93,8 @@ Read [ADR-0001](../adr/0001-manage-scenario-test-specifications-in-markdown.md) 
 
 ## 前提条件
 
-- チェックアウトから casemd を実行する場合は Go 1.27.3 以降を利用できます。必要な場合は Go コマンドが新しい toolchain を自動選択します。
+- チェックアウトから casemd を実行する場合は Go 1.27.3 以降を利用できます。
+  必要な場合は Go コマンドが新しい toolchain を自動選択します。
 - 表示確認には Excel 互換の表計算アプリケーションを利用できます。
 
 ## 仕様を検証する
