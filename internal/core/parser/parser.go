@@ -16,18 +16,6 @@ var (
 	headingRegex     = regexp.MustCompile(`^(#{1,6})(?:[ \t]+(.*))?$`)
 )
 
-// Parse extracts test cases from a Markdown reader.
-func Parse(r io.Reader) ([]domain.Case, error) {
-	cases, _, err := ParseWithDiagnostics("", r)
-	return cases, err
-}
-
-// Validate checks a Markdown reader against the v1 structure without returning cases.
-func Validate(source string, r io.Reader) ([]domain.Diagnostic, error) {
-	_, diagnostics, err := ParseWithDiagnostics(source, r)
-	return diagnostics, err
-}
-
 // ParseWithDiagnostics extracts test cases and reports all v1 structure violations.
 func ParseWithDiagnostics(source string, r io.Reader) ([]domain.Case, []domain.Diagnostic, error) {
 	scanner := bufio.NewScanner(r)

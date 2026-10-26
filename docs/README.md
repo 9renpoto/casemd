@@ -6,7 +6,8 @@ This directory contains the project's durable design decisions and shared termin
 
 - [`adr/`](adr/) contains Architecture Decision Records.
 - [`glossary.md`](glossary.md) defines terms used across the product and its documentation.
-- `guides/` contains task-focused documentation for people using casemd.
+- [`guides/`](guides/) contains task-focused documentation for people using casemd.
+- [`reference/input-format.md`](reference/input-format.md) describes the accepted Markdown notation and text handling.
 - The repository README is the project entry point and links here for detailed documentation.
 - This directory is the source for the published documentation site.
 
@@ -27,7 +28,8 @@ When a decision changes, update the ADR status and add a new ADR for a material 
 
 - [`adr/`](adr/) にArchitecture Decision Recordを置きます。
 - [`glossary.md`](glossary.md) にプロダクトと文書で使う用語を定義します。
-- `guides/` に casemd を使う人向けのタスク中心の文書を置きます。
+- [`guides/`](guides/) に casemd を使う人向けのタスク中心の文書を置きます。
+- [`reference/input-format.md`](reference/input-format.md) に Markdown の記法と文字列の扱いを記載します。
 - リポジトリの README はプロジェクトの入口とし、詳細な文書はこのディレクトリへリンクします。
 - このディレクトリを公開ドキュメントサイトのソースとします。
 

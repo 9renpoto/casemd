@@ -625,13 +625,6 @@ func trimRunes(value string, limit int) string {
 	return builder.String()
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func sanitizeSheetName(name string) string {
 	cleaned := invalidSheetNameChars.Replace(name)
 	cleaned = strings.Trim(cleaned, " ")

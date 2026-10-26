@@ -22,6 +22,12 @@ casemd v1 does not provide full input or output compatibility with eval-spec-mak
 - Inline code is rendered as spreadsheet rich text, while block quotes and mixed-width characters are preserved as authored text.
 - eval-spec-maker's Java and Gradle environment is not a casemd build, test, or CI dependency.
 
+## Text-preservation clarification (2026-10-27)
+
+The existing parser behavior is retained: ordered-step numbers and surrounding whitespace are removed, task-list markers are retained, and ordinary paragraphs are not exported.
+The preservation statement above applies to the extracted list content, subject to whitespace normalization and inline-code rendering; it does not promise lossless Markdown round trips.
+See the [input format reference](../reference/input-format.md) for accepted notation and output details.
+
 ## Consequences
 
 Migrating existing eval-spec-maker Markdown may require splitting repeated `#` sections into input files. Differences from eval-spec-maker output are not defects when they follow this v1 contract. Full compatibility, repeated heading categories, and localized column headers are out of scope for v1.
@@ -52,6 +58,12 @@ casemd v1はeval-spec-makerとの完全な入出力互換を提供しません�
 - タスクリストの各行は、実施記録列を持つXLSXの個別行へ展開します。
 - インラインコードはスプレッドシートのリッチテキストとして表示し、引用と全角文字・半角文字は入力どおり保持します。
 - eval-spec-makerのJavaやGradle環境はcasemdのビルド、テスト、CIの依存関係にしません。
+
+## 本文保持の明確化（2026-10-27）
+
+現状のパーサーの挙動を維持します。番号付き手順の番号と前後の空白は除去し、タスクリストの記号は保持し、通常の段落は出力しません。
+上記の本文保持は、空白の正規化とインラインコードの表示処理を受けたリスト本文を対象とし、Markdown を無損失に往復変換できるという意味ではありません。
+正確な記法と出力の詳細は[入力形式リファレンス](../reference/input-format.md)を参照してください。
 
 ## 結果
 

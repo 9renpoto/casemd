@@ -17,10 +17,6 @@ var version = "dev"
 
 type coreParserAdapter struct{}
 
-func (p *coreParserAdapter) Parse(r io.Reader) ([]domain.Case, error) {
-	return parser.Parse(r)
-}
-
 func (p *coreParserAdapter) ParseWithDiagnostics(source string, r io.Reader) ([]domain.Case, []domain.Diagnostic, error) {
 	return parser.ParseWithDiagnostics(source, r)
 }
@@ -67,7 +63,5 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 
 	tool := cli.New(stdout, stderr, validator, csvConverter, spreadsheetConverter, googleConverter)
-	application := app.New(tool)
-
-	return application.Run(args)
+	return tool.Run(args)
 }

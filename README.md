@@ -34,6 +34,41 @@ Verify the installed version:
 casemd --version
 ```
 
+### From source
+
+#### Requirements
+
+- Go 1.27.3 or later.
+  The Go command automatically selects a newer toolchain when needed.
+- An OAuth access token with the `https://www.googleapis.com/auth/spreadsheets` scope when creating Google Spreadsheets.
+
+Install the CLI with Go:
+
+```sh
+go install github.com/9renpoto/casemd/cmd/casemd@latest
+```
+
+You can also run it directly from a checkout with `go run ./cmd/casemd`.
+
+<details>
+<summary>日本語</summary>
+
+### 必要条件
+
+- Go 1.27.3 以降。
+  必要な場合は Go コマンドが新しい toolchain を自動選択します。
+- Google スプレッドシートを作成する場合は、`https://www.googleapis.com/auth/spreadsheets` スコープを持つ OAuth アクセストークン。
+
+Go で CLI をインストールします。
+
+```sh
+go install github.com/9renpoto/casemd/cmd/casemd@latest
+```
+
+チェックアウトしたリポジトリから `go run ./cmd/casemd` で直接実行することもできます。
+
+</details>
+
 ## Documentation
 
 The README is the project entry point.
@@ -95,41 +130,6 @@ brew install 9renpoto/tap/casemd
 casemd --version
 ```
 
-### From source
-
-### Requirements
-
-- Go 1.27.3 or later.
-  The Go command automatically selects a newer toolchain when needed.
-- An OAuth access token with the `https://www.googleapis.com/auth/spreadsheets` scope when creating Google Spreadsheets.
-
-Install the CLI with Go:
-
-```sh
-go install github.com/9renpoto/casemd/cmd/casemd@latest
-```
-
-You can also run it directly from a checkout with `go run ./cmd/casemd`.
-
-<details>
-<summary>日本語</summary>
-
-### 必要条件
-
-- Go 1.27.3 以降。
-  必要な場合は Go コマンドが新しい toolchain を自動選択します。
-- Google スプレッドシートを作成する場合は、`https://www.googleapis.com/auth/spreadsheets` スコープを持つ OAuth アクセストークン。
-
-Go で CLI をインストールします。
-
-```sh
-go install github.com/9renpoto/casemd/cmd/casemd@latest
-```
-
-チェックアウトしたリポジトリから `go run ./cmd/casemd` で直接実行することもできます。
-
-</details>
-
 ## Usage
 
 Show the available flags:
@@ -153,9 +153,9 @@ Use `casemd validate --help` to see the available flags.
 Convert one Markdown file to CSV and XLSX:
 
 ```sh
-casemd \\
-  --input notes.md \\
-  --csv-output build/notes.csv \\
+casemd \
+  --input notes.md \
+  --csv-output build/notes.csv \
   --spreadsheet-output build/notes.xlsx
 ```
 
@@ -163,18 +163,18 @@ Pass `--input` more than once to combine files into one workbook.
 Each input file becomes a separate worksheet in the workbook.
 
 ```sh
-casemd \\
-  --input notes.md \\
-  --input follow-up.md \\
+casemd \
+  --input notes.md \
+  --input follow-up.md \
   --spreadsheet-output build/all-notes.xlsx
 ```
 
 Create a Google Spreadsheet by providing an access token:
 
 ```sh
-GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \\
-  casemd \\
-  --input notes.md \\
+GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \
+  casemd \
+  --input notes.md \
   --google-spreadsheet-title "Inspection Sheet Export"
 ```
 
@@ -212,9 +212,9 @@ casemd validate --input notes.md --input follow-up.md
 Markdown ファイルを CSV と XLSX に変換します。
 
 ```sh
-casemd \\
-  --input notes.md \\
-  --csv-output build/notes.csv \\
+casemd \
+  --input notes.md \
+  --csv-output build/notes.csv \
   --spreadsheet-output build/notes.xlsx
 ```
 
@@ -224,9 +224,9 @@ casemd \\
 アクセストークンを指定して Google スプレッドシートを作成します。
 
 ```sh
-GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \\
-  casemd \\
-  --input notes.md \\
+GOOGLE_SHEETS_ACCESS_TOKEN=ya29.example-token \
+  casemd \
+  --input notes.md \
   --google-spreadsheet-title "Inspection Sheet Export"
 ```
 
@@ -242,6 +242,8 @@ casemd serve
 </details>
 
 ## Input format
+
+For the exact accepted notation and text handling, read the [input format reference](docs/reference/input-format.md).
 
 Use headings to define the inspection hierarchy and lists to define execution details:
 
@@ -279,6 +281,8 @@ The repository includes [`notes.md`](notes.md) and [`follow-up.md`](follow-up.md
 
 <details>
 <summary>日本語</summary>
+
+正確な記法と文字列の扱いは[入力形式リファレンス](docs/reference/input-format.md)を参照してください。
 
 見出しで点検階層を定義し、リストで実行内容を定義します。
 
@@ -322,9 +326,9 @@ The preview server provides the following HTTP endpoints when `casemd serve` is 
 Example request:
 
 ```sh
-curl --fail \\
-  -H 'Content-Type: application/json' \\
-  -d '{"name":"notes.md","markdown":"## Setup\\n### Environment\\n#### Dependencies"}' \\
+curl --fail \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"notes.md","markdown":"## Setup\n### Environment\n#### Dependencies\n1. Install required packages\n* [ ] Packages installed successfully"}' \
   http://localhost:3000/api/preview
 ```
 
