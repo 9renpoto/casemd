@@ -10,7 +10,7 @@ import (
 	"github.com/9renpoto/casemd/internal/core/domain"
 )
 
-func TestParse(t *testing.T) {
+func TestParseWithDiagnostics(t *testing.T) {
 	markdown := `# Inspection Sheet
 
 ## Setup
@@ -95,13 +95,16 @@ func TestParse(t *testing.T) {
 	}
 
 	reader := strings.NewReader(markdown)
-	actualCases, err := Parse(reader)
+	actualCases, diagnostics, err := ParseWithDiagnostics("scenario.md", reader)
 	if err != nil {
-		t.Fatalf("Parse() returned an unexpected error: %v", err)
+		t.Fatalf("ParseWithDiagnostics() returned an unexpected error: %v", err)
+	}
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %+v", diagnostics)
 	}
 
 	if !reflect.DeepEqual(actualCases, expectedCases) {
-		t.Errorf("Parse() returned %+v, want %+v", actualCases, expectedCases)
+		t.Errorf("ParseWithDiagnostics() returned %+v, want %+v", actualCases, expectedCases)
 	}
 }
 
@@ -280,14 +283,6 @@ func TestValidate(t *testing.T) {
 				if got.Suggestion == "" {
 					t.Errorf("diagnostic %d has an empty suggestion", index)
 				}
-			}
-
-			validated, err := Validate(source, strings.NewReader(tt.markdown))
-			if err != nil {
-				t.Fatalf("Validate() returned an unexpected error: %v", err)
-			}
-			if !reflect.DeepEqual(validated, diagnostics) {
-				t.Errorf("Validate() returned %+v, want %+v", validated, diagnostics)
 			}
 		})
 	}

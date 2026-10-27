@@ -18,7 +18,7 @@ Information captured while performing a checkpoint: result, test date, tester, a
 
 ## Rich Markdown
 
-Markdown-like inline notation that carries presentation semantics into an output format. casemd currently renders matched backtick code spans as monospace text in XLSX and Google Sheets; unmatched delimiters remain literal.
+Inline notation in a scenario definition that conveys presentation meaning, such as marking text as code.
 
 <details>
 <summary>日本語</summary>
@@ -43,6 +43,6 @@ Markdown-like inline notation that carries presentation semantics into an output
 
 ## Rich Markdown
 
-出力形式へ表示上の意味を渡すMarkdownに近いインライン記法です。casemdは現在、対応するバッククォートのコードスパンをXLSXとGoogle Sheetsで等幅テキストとして表示し、閉じていない区切り記号はリテラルのまま出力します。
+コードとしての強調など、表示上の意味を伝えるシナリオ定義内のインライン記法です。
 
 </details>
