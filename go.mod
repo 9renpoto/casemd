@@ -3,7 +3,7 @@ module github.com/9renpoto/casemd
 go 1.27.3
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.15
+	github.com/gofiber/fiber/v2 v2.52.16
 	github.com/gofiber/template/html/v2 v2.1.3
 )
 
