@@ -1,3 +1,21 @@
+## v0.1.0 (2026-11-10)
+<!-- Release notes generated using configuration in .github/release.yml at main -->
+
+## What's Changed
+### :house: Refactoring
+* refactor: simplify parser API and clarify input documentation by @9renpoto in https://github.com/9renpoto/casemd/pull/143
+### Other Changes
+* chore(deps): bump zizmorcore/zizmor-action from 0.6.4 to 0.7.1 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/140
+* chore(deps): bump goreleaser/goreleaser-action from 7.2.3 to 7.3.0 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/141
+* chore(deps): bump reviewdog/action-actionlint from 1.80.0 to 1.80.2 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/142
+* chore(deps): bump zizmorcore/zizmor-action from 0.7.1 to 0.8.0 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/148
+* chore(deps): bump github.com/gofiber/fiber/v2 from 2.52.15 to 2.52.16 in the fiber group by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/145
+* chore(deps): bump docker/login-action from 4.6.0 to 4.7.0 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/147
+* chore(deps): bump reviewdog/action-actionlint from 1.80.2 to 1.80.6 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/146
+* chore(deps): bump reviewdog/action-actionlint from 1.80.6 to 1.81.1 by @dependabot[bot] in https://github.com/9renpoto/casemd/pull/149
+
+
+**Full Changelog**: https://github.com/9renpoto/casemd/compare/v0.0.7...v0.1.0
 ## v0.0.7 (2026-10-22)
 <!-- Release notes generated using configuration in .github/release.yml at main -->
 
